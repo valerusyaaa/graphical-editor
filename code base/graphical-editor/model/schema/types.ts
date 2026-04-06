@@ -57,8 +57,6 @@ export type ObjectInfo<T = any> = {
 
     fillColor?: string;
     strokeColor?: string;
-    label?: string;
-    controlMode?: ControlMode;
     data?: T;
 };
 

@@ -11,7 +11,6 @@ export abstract class GraphicObjectScheme<T = any> {
     techType?: TechObjectTypeDto;
     objectType: ObjectType;
     label: string;
-    tooltip?: ManagerTooltip;
     data: T;
 
     constructor(info: ObjectInfo) {
@@ -25,6 +24,5 @@ export abstract class GraphicObjectScheme<T = any> {
     }
 
     abstract setStrokeColor(strokeColor: string): void;
-    abstract refreshLabel(label: string): void;
     abstract draw(viewport: Viewport, tool:ITool, tooltip?: IGraphicalEditorTooltip): void;
 }
