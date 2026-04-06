@@ -7,11 +7,9 @@ import type {
     SelectedTextualGraphicObject,
     TextualGraphicObject,
 } from "../schema";
-import type { MenuItem } from "primevue/menuitem";
 
 export interface ITool {
     contextMenu: any;
-    itemsContextMenu: MenuItem[];
     onMouseDownPointerObject(event: FederatedPointerEvent, object: PointerGraphicObject): Promise<void>;
     onMouseDownLinearObject(
         event: FederatedPointerEvent,
@@ -44,5 +42,4 @@ export interface ITool {
     onContextMenuNodeObject(event: FederatedPointerEvent, objectId: number, nodeIndex: number): Promise<void>;
     onContextMenuPane(event: FederatedPointerEvent): Promise<void>;
     onContextMenuSelectedArea(event: FederatedPointerEvent): Promise<void>;
-    useHotKeys(ref: Ref): void;
 }

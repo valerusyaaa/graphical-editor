@@ -7,7 +7,7 @@
         <code>@graphical-editor/core</code>.
       </p>
 
-      <CoreComponent label="Нажми меня" @click="onCoreClick" />
+      <GraphicalEditor win-ref="winRef" />
 
       <p v-if="clicked" class="status">
         Событие <code>click</code> получено из core-компонента.
@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { CoreComponent } from "@graphical-editor/core";
+import { GraphicalEditor } from "@graphical-editor/core";
 
 const clicked = ref(false);
 
