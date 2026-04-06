@@ -1,0 +1,76 @@
+<template>
+  <main class="page">
+    <section class="panel">
+      <h1>Graphical Editor Demo</h1>
+      <p>
+        Это тестовое приложение, использующее компонент из
+        <code>@graphical-editor/core</code>.
+      </p>
+
+      <CoreComponent label="Нажми меня" @click="onCoreClick" />
+
+      <p v-if="clicked" class="status">
+        Событие <code>click</code> получено из core-компонента.
+      </p>
+    </section>
+  </main>
+</template>
+
+<script setup lang="ts">
+import { ref } from "vue";
+import { CoreComponent } from "@graphical-editor/core";
+
+const clicked = ref(false);
+
+const onCoreClick = () => {
+  clicked.value = true;
+};
+</script>
+
+<style scoped>
+.page {
+  min-height: 100vh;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #e0f2fe, #eff6ff 45%, #f9fafb);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.panel {
+  max-width: 640px;
+  width: 100%;
+  padding: 2rem;
+  border-radius: 1rem;
+  background: white;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+}
+
+h1 {
+  margin: 0 0 1rem;
+  font-size: 1.75rem;
+}
+
+p {
+  margin: 0 0 1rem;
+  color: #4b5563;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  background: #f3f4f6;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+}
+
+.status {
+  margin-top: 1rem;
+  font-weight: 500;
+  color: #166534;
+  background: #dcfce7;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+}
+</style>

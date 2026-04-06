@@ -1,0 +1,14 @@
+{
+  "addPassportLabels": "Add passpot labels",
+  "addCalculationLabels": "Add calculation labels",
+  "addRawDataLabels": "Add raw data labels",
+  "addProcessedDataLabels": "Add processed data labels",
+  "applyTo": "Apply to ...",
+  "allObjects": "All objects",
+  "selectedObjects": "Selected objects",
+  "currentTechTypeObject": "Current tech type object",
+  "techTypesObject": "Tech types object ...",
+  "lockScheme": "Lock scheme",
+  "unlockScheme": "Unlock scheme"
+}
+

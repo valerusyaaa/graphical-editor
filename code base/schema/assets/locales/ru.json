@@ -1,0 +1,14 @@
+{
+  "addPassportLabels": "Добавить метки паспорта",
+  "addCalculationLabels": "Добавить метки расчета",
+  "addRawDataLabels": "Добавить метки сырых данных",
+  "addProcessedDataLabels": "Добавить метки обработанных данных",
+  "applyTo": "Применить к ...",
+  "allObjects": "Все объекты",
+  "selectedObjects": "Выбранные объекты",
+  "currentTechTypeObject": "Объект текущего типа техники",
+  "techTypesObject": "Объекты типов техники ...",
+  "lockScheme": "Заблокировать схему",
+  "unlockScheme": "Разблокировать схему"
+}
+
