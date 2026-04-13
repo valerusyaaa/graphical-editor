@@ -39,7 +39,7 @@ const onCoreClick = () => {
 }
 
 .panel {
-  max-width: 640px;
+  max-width: 840px;
   width: 100%;
   padding: 2rem;
   border-radius: 1rem;
