@@ -24,6 +24,7 @@ const clicked = ref(false);
 
 const onCoreClick = () => {
   clicked.value = true;
+  
 };
 </script>
 
