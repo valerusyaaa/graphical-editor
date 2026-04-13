@@ -1,5 +1,4 @@
-import { type ObjectInfo, type XYPosition, adaptToGrid, GraphicObjectScheme } from "../";
-import { getOffsetsGraphicObject, GraphicObjectTypeDto, type OffsetsDto } from "@/entities/projects";
+import { type ObjectInfo, type XYPosition, adaptToGrid, GraphicObjectScheme, Offsets } from "../";
 import { useGraphicSchemeStore } from "../..";
 import {
     BitmapText,
@@ -23,7 +22,7 @@ export class PointerGraphicObject extends GraphicObjectScheme {
     rotationAngle: number;
     flipHorizontal: boolean;
     flipVertical: boolean;
-    offsets: OffsetsDto;
+    offsets: Offsets;
     fillColor: string;
     strokeColor: string = "transparent";
     transformBounds: BoundsData;
@@ -35,7 +34,7 @@ export class PointerGraphicObject extends GraphicObjectScheme {
         this.flipHorizontal = info.flipHorizontal ?? false;
         this.flipVertical = info.flipVertical ?? false;
         this.objectType = "pointer";
-        this.offsets = this.graphType !== undefined ? getOffsetsGraphicObject(this.graphType) : { left: 0, top: 0 };
+        this.offsets = info.offsets ?? { left: 0, top: 0 };
         this.position = this.getComputedNodePosition(info.position!);
         this.fillColor = info.fillColor ?? "transparent";
         this.strokeColor = info.strokeColor ?? "transparent";
@@ -147,7 +146,6 @@ export class PointerGraphicObject extends GraphicObjectScheme {
     }
 
     refreshLabel(label: string) {
-        this.label = label;
         const graphicSchemeStore = useGraphicSchemeStore();
         const viewport = graphicSchemeStore.getViewport();
         if (!viewport) {
@@ -227,15 +225,6 @@ export class PointerGraphicObject extends GraphicObjectScheme {
         }
 
         // подпись объекта (label) строго ниже объекта
-        const textObject = this.drawLabelElement();
-        if (textObject) {
-            container.addChild(textObject);
-        }
-
-        const label = this.drawLabelElement();
-        if (label) {
-            container.addChild(label);
-        }
         viewport.addChild(container);
         this.transformBounds = this.getBounds(viewport);
     }
@@ -256,26 +245,6 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 
     drawSelectedElement(position: XYPosition): GraphicsContext {
         return new GraphicsContext();
-    }
-
-    drawLabelElement(): BitmapText | undefined {
-        if (!this.label) {
-            return;
-        }
-        // Базовая позиция для большинства объектов 40x40: по центру снизу
-        // Текст будет располагаться под объектом в локальных координатах контейнера
-        return new BitmapText({
-            text: this.label,
-            style: {
-                fontSize: 14,
-                align: "center",
-                fill: "white",
-            },
-            position: {
-                x: 20,
-                y: 41,
-            },
-        });
     }
 
     getProcessingHitArea() {

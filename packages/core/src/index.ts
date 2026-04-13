@@ -1,1 +1,4 @@
-export { default as CoreComponent } from "./components/CoreComponent.vue";
+export * from "./lib";
+export * from "./model";
+export * from "./ui";
+export * from "./composables";

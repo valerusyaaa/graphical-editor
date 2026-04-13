@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@primeuix/utils": "latest",
-    "@vue-flow/core": "latest",
     "pixi-viewport": "latest",
     "pixi.js": "latest",
     "primevue": "latest"

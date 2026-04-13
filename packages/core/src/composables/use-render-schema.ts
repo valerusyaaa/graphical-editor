@@ -1,23 +1,21 @@
 import { Viewport } from "pixi-viewport";
 import { type Application } from "pixi.js";
-import { Grid, useGraphicSchemeStore, type ITool } from "../model";
+import { useGraphicSchemeStore, type ITool } from "../model";
 import { calculatingBoundsSchema } from "../lib";
 import type { IGraphicalEditorTooltip, ManagerTooltip } from "./use-tooltip";
 
 export function useRenderSchema() {
     let viewport: Viewport;
     const graphicSchemaStore = useGraphicSchemeStore();
+    
     function renderSchema(app: Application): Viewport {
         viewport = initViewport(app);
 
         const tool = graphicSchemaStore.tool;
-        const tooltip = graphicSchemaStore.tooltipManager;
         fitFullSchema();
 
-        drawGraphicLinear(viewport, tool, tooltip);
-        //drawGrid(app, viewport);
-        drawGraphicPointer(viewport, tool, tooltip);
-        drawGraphicTextual(viewport, tool);
+        drawGraphicLinear(viewport, tool);
+        drawGraphicPointer(viewport, tool);
 
         return viewport;
     }
@@ -53,6 +51,10 @@ export function useRenderSchema() {
         return viewport;
     }
 
+    /**
+     * Подгоняет схему под размеры экрана
+     * @param paddingPercent - процент padding от размера экрана
+     */
     function fitFullSchema(paddingPercent = 5) {
         const bounds = calculatingBoundsSchema(graphicSchemaStore.pointerObjs, graphicSchemaStore.linearObjs);
         const scaleX = viewport.screenWidth / bounds.width;
@@ -67,27 +69,16 @@ export function useRenderSchema() {
         return;
     }
 
-    function drawGraphicPointer(viewport: Viewport, tool: ITool, tooltip?: IGraphicalEditorTooltip) {
+    function drawGraphicPointer(viewport: Viewport, tool: ITool) {
         graphicSchemaStore.pointerObjs.forEach(object => {
-            object.draw(viewport, tool, tooltip);
-        });
-    }
-
-    function drawGraphicLinear(viewport: Viewport, tool: ITool, tooltip?: IGraphicalEditorTooltip) {
-        graphicSchemaStore.linearObjs.forEach(object => {
-            object.draw(viewport, tool, tooltip);
-        });
-    }
-
-    function drawGraphicTextual(viewport: Viewport, tool: ITool) {
-        graphicSchemaStore.textalObjs.forEach(object => {
             object.draw(viewport, tool);
         });
     }
 
-    function drawGrid(app: Application, viewport: Viewport) {
-        const grid = new Grid(app, viewport, 10);
-        viewport.addChild(grid);
+    function drawGraphicLinear(viewport: Viewport, tool: ITool) {
+        graphicSchemaStore.linearObjs.forEach(object => {
+            object.draw(viewport, tool);
+        });
     }
 
     return {

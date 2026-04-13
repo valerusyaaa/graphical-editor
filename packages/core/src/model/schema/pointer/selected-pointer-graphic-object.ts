@@ -5,8 +5,8 @@ import {
     type ObjectInfo,
     SelectedGraphicObject,
     type XYPosition,
+    Offsets,
 } from "..";
-import { getOffsetsGraphicObject, type GraphicPointDto, type OffsetsDto } from "@/entities/projects";
 import { type Graphics } from "pixi.js";
 import { Viewport } from "pixi-viewport";
 import { useGraphicSchemeStore } from "../../stores";
@@ -14,23 +14,21 @@ import type { ITool } from "../../tools";
 
 export class SelectedPointerGraphicObject extends SelectedGraphicObject {
     objectScheme?: PointerGraphicObject | null;
-    position: GraphicPointDto;
+    position: XYPosition;
     rotationAngle: number;
     flipHorizontal: boolean;
     flipVertical: boolean;
-    offsets: OffsetsDto;
+    offsets: Offsets;
     tool: ITool;
 
     constructor(info: ObjectInfo) {
         super({
             id: info.id,
-            typeSelect: convertToStyleName(info.graphType!, true),
-            typeGraph: info.graphType,
+            typeSelect: info.objectType,
             isActive: false,
             techObjectId: info.techObjectId,
-            techType: info.techType,
         });
-        this.offsets = getOffsetsGraphicObject(this.graphType!);
+        this.offsets = info.offsets ?? { left: 0, top: 0 };
         this.position = info.position ?? {
             x: 0,
             y: 0,
@@ -102,7 +100,7 @@ export class SelectedPointerGraphicObject extends SelectedGraphicObject {
         this.graphics.destroy();
     }
 
-    getComputedObjectPosition(nodePosition: XYPosition): GraphicPointDto {
+    getComputedObjectPosition(nodePosition: XYPosition): XYPosition {
         return {
             x: nodePosition.x + this.offsets.left,
             y: nodePosition.y + this.offsets.top,

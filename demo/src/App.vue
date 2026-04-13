@@ -7,7 +7,7 @@
         <code>@graphical-editor/core</code>.
       </p>
 
-      <GraphicalEditor win-ref="winRef" />
+      <GraphicalEditor win-ref="winRef" :objects="objects" :descriptions="descriptions" />
 
       <p v-if="clicked" class="status">
         Событие <code>click</code> получено из core-компонента.
@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { GraphicalEditor } from "@graphical-editor/core";
+import { GraphicObjectDto, ObjectDescription } from "../../packages/core/src/api/types";
 
 const clicked = ref(false);
 
@@ -26,6 +26,13 @@ const onCoreClick = () => {
   clicked.value = true;
   
 };
+
+type ObjectData = {
+  techObjectId: number;
+}
+
+const objects = ref<GraphicObjectDto<ObjectData>[]>([]);
+const descriptions = ref<ObjectDescription[]>([]);
 </script>
 
 <style scoped>

@@ -3,6 +3,7 @@ import type { Viewport } from "pixi-viewport";
 import { useGraphicSchemeStore, useRenderSchema, useSelectionArea, type ITool } from "..";
 import { Application, CullerPlugin, extensions } from "pixi.js";
 import { useTooltip } from "../composables/use-tooltip";
+import { onMounted, nextTick, shallowRef, toRef, ref } from "vue";
 
 const props = defineProps<{
     tool?: ITool;
@@ -11,8 +12,6 @@ const props = defineProps<{
 extensions.add(CullerPlugin);
 const { renderSchema } = useRenderSchema();
 const graphicSchemeStore = useGraphicSchemeStore();
-//TODO Добить рамку выделения объектов
-const { onInitSelectionArea } = useSelectionArea();
 
 const appContainer = ref<HTMLDivElement | null>(null);
 const app = shallowRef<Application | null>(null);
