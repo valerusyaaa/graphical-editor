@@ -4,6 +4,24 @@ import type { Viewport } from "pixi-viewport";
 import { useGraphicSchemeStore } from "../../stores";
 import type { IGraphicalEditorTooltip } from "../../../composables";
 import type { ITool } from "../../tools";
+import type { ObjectType } from "../types";
+
+export type LinearGraphicObjectDto<Data = any> = {
+    id: number;
+    featureObjectType: string;
+    graphObjectType: ObjectType;
+    points: XYPosition[];
+    data?: Data;
+};
+
+export type GraphicObjectDto<Data = any> = {
+    id: number;
+    featureObjectType: string;
+    graphObjectType: ObjectType;
+    position?: XYPosition;
+    points?: XYPosition[];
+    data?: Data;
+};
 
 export class LinearGraphicObject extends GraphicObjectScheme {
     points: XYPosition[];

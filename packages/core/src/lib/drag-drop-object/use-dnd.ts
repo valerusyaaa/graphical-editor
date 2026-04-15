@@ -2,7 +2,6 @@ import { useVueFlow } from "@vue-flow/core";
 import { watch } from "vue";
 import { useDndStore, type DndState, type DropInfo } from "..";
 import { type ObjectType, adaptToGrid, PointerGraphicObject, LinearGraphicObject } from "@/shared/graphical-editor";
-import { useProjectsStore } from "@/entities/projects";
 import { useGraphicSchemeStore } from "@/shared/graphical-editor";
 import type { Viewport } from "pixi-viewport";
 import type { XYPosition } from "../../model";

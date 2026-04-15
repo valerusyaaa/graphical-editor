@@ -1,23 +1,4 @@
-import {
-    useProjectsStore,
-    getRegime,
-    ValveStateDto,
-    TechObjectStateDto,
-    ControlModeDto,
-    type DirectionFlow,
-    strokeColors,
-    fillColors,
-    GraphicObjectPipe,
-    directionIconColors,
-    type GraphicObjectControlValves,
-    type RegimeDataDto,
-    ValveBinaryStateDto,
-    GraphicLabelItemSourceTypeDto,
-    type IObjectControlMode,
-} from "@/entities/projects";
 import { useSimulationStore } from "@/entities/calculation-results";
-import type { AnimationGraphicObject } from "@/entities/projects/model/animation-graphic-object";
-import type { BaseGraphicObject } from "@/entities/projects/model/base-object-scheme";
 import { useAppMode } from "@/features/app-mode";
 import { LinearGraphicObject, PointerGraphicObject, useGraphicSchemeStore } from "@/shared/graphical-editor";
 import { refreshLabelsByHistoricalData, refreshLabelsBySimulation } from "./helper-labels";

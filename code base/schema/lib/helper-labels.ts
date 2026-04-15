@@ -18,10 +18,9 @@ import {
     type GraphicLabelItemDto,
     type RegimeDataDto,
     type SpecialPassportPropertyPath,
-} from "@/entities/projects";
+} 
 import { useGraphicSchemeStore, type ObjectInfo } from "@/shared/graphical-editor";
 import type { MenuItem } from "primevue/menuitem";
-import { convertTechObjectTypeToDisplayName } from "@/entities/projects";
 import type { GraphicObjectScheme, ITool, SelectedGraphicObject, XYPosition } from "@/shared/graphical-editor";
 import { Assets } from "pixi.js";
 import { getResult } from "@/widgets/tech-regime-editor/lib/helpers";

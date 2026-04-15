@@ -1,4 +1,3 @@
-import { GraphicObjectTypeDto, type GraphicPointDto, TechObjectTypeDto } from "@/entities/projects";
 import { LinearGraphicObject, type ObjectType, PointerGraphicObject, type XYPosition } from "../../model";
 
 export type DropInfo = {

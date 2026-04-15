@@ -1,6 +1,5 @@
 import type { DefineComponent, Raw } from "vue";
 import type { GraphEdge, GraphNode, XYPosition } from "@vue-flow/core";
-import { type GraphicObjectDto, TechObjectTypeDto } from "@/entities/projects";
 import {
     type GraphicScheme,
     LinearGraphicObject,

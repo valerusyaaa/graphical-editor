@@ -16,6 +16,26 @@ import {
 import type { Viewport } from "pixi-viewport";
 
 import type { IGraphicalEditorTooltip, ITool, ManagerTooltip } from "../../..";
+import type { ObjectType } from "../types";
+
+export type ObjectDescription = {
+    featureObjectType: string;
+    graphObjectType: ObjectType;
+    thikness?: number;
+    strokeWidth?: number;
+    offsets?: Offsets;
+    polynom?: number[];
+    fillColor?: string;
+    strokeColor?: string;
+};
+
+export type PointerGraphicObjectDto<Data = any> = {
+    id: number;
+    featureObjectType: string;
+    graphObjectType: ObjectType;
+    position: XYPosition;
+    data?: Data;
+};
 
 export class PointerGraphicObject extends GraphicObjectScheme {
     position: XYPosition;

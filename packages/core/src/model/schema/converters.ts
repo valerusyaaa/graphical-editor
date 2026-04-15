@@ -1,5 +1,3 @@
-import { GraphicObjectTypeDto } from "@/entities/projects";
-
 export function convertToStyleName(graphicObjectType: GraphicObjectTypeDto, selected: boolean): string {
     let result = "";
     switch (graphicObjectType) {

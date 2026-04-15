@@ -10,15 +10,6 @@ import {
     type ITool,
 } from "..";
 import { type XYPosition } from "@vue-flow/core";
-import {
-    deleteGraphicLabels,
-    deleteGraphicObject,
-    deleteGraphicObjects,
-    deleteTechObject,
-    deleteTechObjects,
-    useProjectsStore,
-    type GraphicLabelDto,
-} from "@/entities/projects";
 import { type GraphicSchemeState, type CopyObject } from "./types";
 import { useSelectedObjectStore } from "@/entities/select-object";
 import { Viewport } from "pixi-viewport";

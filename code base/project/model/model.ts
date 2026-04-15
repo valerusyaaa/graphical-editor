@@ -1,5 +1,3 @@
-import { GraphicObjectTypeDto, type OffsetsDto, TechObjectTypeDto } from "@/entities/projects";
-
 export function getOffsetsGraphicObject(type: GraphicObjectTypeDto): OffsetsDto {
     switch (type) {
         case GraphicObjectTypeDto.Valve:

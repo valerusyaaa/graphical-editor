@@ -14,15 +14,6 @@ import {
 } from "@/shared/graphical-editor";
 import { useSelectedObjectStore } from "@/entities/select-object";
 import { useGraphicSchemeStore } from "@/shared/graphical-editor/model/stores";
-import {
-    editGraphicObject,
-    editGraphicObjects,
-    GraphicObjectLabel,
-    redactGraphicLabels,
-    useProjectsStore,
-    type GraphicLabelDto,
-    type GraphicObjectDto,
-} from "@/entities/projects";
 import { Viewport } from "pixi-viewport";
 import { GraphicsContext, Matrix, type FederatedPointerEvent, type Graphics } from "pixi.js";
 import type { MenuItem } from "primevue/menuitem";

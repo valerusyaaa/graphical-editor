@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { GraphicLabelItemSourceTypeDto } from "@/entities/projects";
 import { AppenderLabelItems, DialogPassportItem, DialogCalcultaionItem } from "@/features/append-label";
 import { useI18n } from "vue-i18n";
 

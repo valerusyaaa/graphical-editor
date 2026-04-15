@@ -4,7 +4,6 @@ Current `@graphical-editor/core` source still depends on app-level aliases and c
 
 ## Blocking aliases
 
-- `@/entities/projects`
 - `@/entities/select-object`
 - `@/shared/graphical-editor`
 - `@/shared/graphical-editor/model`
