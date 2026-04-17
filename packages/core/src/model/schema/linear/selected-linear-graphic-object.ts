@@ -9,7 +9,6 @@ import {
 import { Circle, Graphics, GraphicsContext } from "pixi.js";
 import { Viewport } from "pixi-viewport";
 import { useGraphicSchemeStore } from "../../stores";
-import type { IGraphicalEditorTooltip } from "../../../composables";
 import type { ITool } from "../../tools";
 
 export class SelectedLinearGraphicObject extends SelectedGraphicObject {
@@ -24,9 +23,7 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
             id: info.id,
             typeSelect: "linear-select",
             techObjectId: info.techObjectId,
-            typeGraph: info.graphType,
             isActive: true,
-            techType: info.techType,
         });
         const graphicObjectScheme = useGraphicSchemeStore();
         this.points = info.points ?? [];
@@ -48,17 +45,6 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
             this.tool.onContextMenuLinearObject(event, this.idObject);
         };
 
-        const graphicSchemeStore = useGraphicSchemeStore();
-        const tooltip = graphicSchemeStore.tooltipManager;
-        this.graphics.onmouseenter = event => {
-            event.stopPropagation();
-            tooltip?.showTooltip(event.pageX, event.pageY, this);
-        };
-
-        this.graphics.onmouseleave = event => {
-            event.stopPropagation();
-            tooltip?.hideTooltip();
-        };
         this.graphics.zIndex = 3;
     }
 
@@ -75,16 +61,6 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
         };
 
         const graphicSchemeStore = useGraphicSchemeStore();
-        const tooltip = graphicSchemeStore.tooltipManager;
-        shadowGraphicsLine.onmouseenter = event => {
-            event.stopPropagation();
-            tooltip?.showTooltip(event.pageX, event.pageY, this);
-        };
-
-        shadowGraphicsLine.onmouseleave = event => {
-            event.stopPropagation();
-            tooltip?.hideTooltip();
-        };
         shadowGraphicsLine.zIndex = 3;
         return shadowGraphicsLine;
     }
@@ -217,11 +193,11 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
 
     rotate(angle: number) {}
 
-    async resetPath(points: XYPosition[], viewport: Viewport, tooltip?: IGraphicalEditorTooltip) {
+    async resetPath(points: XYPosition[], viewport: Viewport) {
         this.points = points;
         if (this.objectScheme) {
             this.objectScheme.points = points;
-            this.objectScheme.resetPath(viewport, this.tool, tooltip);
+            this.objectScheme.resetPath(viewport, this.tool);
             this.nodes.forEach(n => n.graphics.destroy());
             this.nodes = this.createNodes();
             this.graphics.context = this.getLineContext(this.points.map(p => adaptToGrid(p)));

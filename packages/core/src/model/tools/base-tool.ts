@@ -4,8 +4,6 @@ import type {
     PointerGraphicObject,
     SelectedLinearGraphicObject,
     SelectedPointerGraphicObject,
-    SelectedTextualGraphicObject,
-    TextualGraphicObject,
 } from "../schema";
 import type { ITool } from "./itool";
 import type { MenuItem } from "primevue/menuitem";
@@ -19,11 +17,8 @@ export class BaseTool implements ITool {
     }
     async onMouseDownPointerObject(event: FederatedPointerEvent, object: PointerGraphicObject): Promise<void> {}
     async onMouseDownLinearObject(event: FederatedPointerEvent, object: LinearGraphicObject): Promise<void> {}
-    async onMouseDownTextualObject(event: MouseEvent, object: TextualGraphicObject): Promise<void> {}
     async onMouseDownSelectedPointerObject(event: MouseEvent, object: SelectedPointerGraphicObject): Promise<void> {}
     async onMouseDownSelectedLinearObject(event: MouseEvent, object: SelectedLinearGraphicObject): Promise<void> {}
-    async onMouseDownSelectedTextualObject(event: MouseEvent, object: SelectedTextualGraphicObject): Promise<void> {}
-    async onMouseDownSelectedArea(event: FederatedPointerEvent): Promise<void> {}
     async onContextMenuPointerObject(
         event: FederatedPointerEvent,
         pointerObject: PointerGraphicObject | SelectedPointerGraphicObject
@@ -46,5 +41,4 @@ export class BaseTool implements ITool {
             selectedPointerObjects:[],
         }
     }
-    useHotKeys(ref: Ref): void {}
 }

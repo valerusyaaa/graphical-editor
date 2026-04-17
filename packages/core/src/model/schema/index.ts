@@ -8,7 +8,4 @@ export * from "./types";
 export * from "./converters";
 export * from "./helper";
 export * from "./graphic-object-dto-factory";
-export * from "./textual/textual-graphic-object"
-export * from "./textual/selected-textual-graphic-object"
 export * from "./selected-graphic-object-scheme"
-export * from "./utils/grid"

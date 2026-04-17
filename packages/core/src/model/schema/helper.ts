@@ -1,4 +1,4 @@
-import type { XYPosition } from "@vue-flow/core";
+import type { XYPosition } from "./types";
 
 export function adaptToGrid(position: XYPosition, gridStep: number = 10): XYPosition {
     return {

@@ -1,87 +1,133 @@
 import { Viewport } from "pixi-viewport";
 import { type Application } from "pixi.js";
-import { useGraphicSchemeStore, type ITool } from "../model";
+import {
+	createGraphicObjectFromDto,
+	getDescriptionByType,
+	useGraphicSchemeStore,
+	type ITool,
+} from "../model";
 import { calculatingBoundsSchema } from "../lib";
-import type { IGraphicalEditorTooltip, ManagerTooltip } from "./use-tooltip";
+import { GraphicObjectDto, ObjectDescription } from "../api";
+import { Ref, watch } from "vue";
+import { PointerGraphicObject, LinearGraphicObject } from "../model";
 
-export function useRenderSchema() {
-    let viewport: Viewport;
-    const graphicSchemaStore = useGraphicSchemeStore();
-    
-    function renderSchema(app: Application): Viewport {
-        viewport = initViewport(app);
+export function useRenderSchema(
+	objects: Ref<GraphicObjectDto<any>[]>,
+	descriptions: Ref<ObjectDescription[]>,
+) {
+	let viewport: Viewport;
+	const graphicSchemaStore = useGraphicSchemeStore();
 
-        const tool = graphicSchemaStore.tool;
-        fitFullSchema();
+	watch(
+		() => objects.value,
+		() => {
+			const pointerObjs = objects.value.map((object) =>
+				createGraphicObjectFromDto(
+					object,
+					getDescriptionByType(
+						descriptions.value,
+						object.featureObjectType,
+					),
+				),
+			);
+			const linearObjs = objects.value.map((object) =>
+				createGraphicObjectFromDto(
+					object,
+					getDescriptionByType(
+						descriptions.value,
+						object.featureObjectType,
+					),
+				),
+			);
+			graphicSchemaStore.scheme.layerGraphicObject.pointer =
+				pointerObjs as unknown as PointerGraphicObject[];
+			graphicSchemaStore.scheme.layerGraphicObject.linear =
+				linearObjs as unknown as LinearGraphicObject[];
+		},{
+            immediate: true,
+            deep: true,
+        }
+	);
 
-        drawGraphicLinear(viewport, tool);
-        drawGraphicPointer(viewport, tool);
+	function renderSchema(app: Application): Viewport {
+		viewport = initViewport(app);
 
-        return viewport;
-    }
+		const tool = graphicSchemaStore.tool;
+		// fitFullSchema();
 
-    function initViewport(app: Application) {
-        const viewport = new Viewport({
-            events: app.renderer.events,
-            stopPropagation: false,
-            disableOnContextMenu: true,
-            screenHeight: app.canvas.height,
-            screenWidth: app.canvas.width,
-            allowPreserveDragOutside: true,
-        });
-        // viewport.cullable = true;
-        // viewport.cullableChildren = true;
-        app.stage.addChild(viewport);
-        viewport.drag().pinch().wheel();
-        viewport.label = "viewport";
-        viewport.addEventListener("click", () => {
-            if (!graphicSchemaStore.isDragPan) {
-                graphicSchemaStore.clearSelectionObjects();
-            }
-            graphicSchemaStore.isDragPan = false;
-        });
-        viewport.addEventListener("drag-start", event => {
-            graphicSchemaStore.isDragPan = true;
-        });
+		drawGraphicLinear(viewport, tool);
+		drawGraphicPointer(viewport, tool);
 
-        viewport.onrightclick = event => {
-            graphicSchemaStore.tool.onContextMenuPane(event);
-        };
+		return viewport;
+	}
 
-        return viewport;
-    }
+	function initViewport(app: Application) {
+		const viewport = new Viewport({
+			events: app.renderer.events,
+			stopPropagation: false,
+			disableOnContextMenu: true,
+			screenHeight: app.canvas.height,
+			screenWidth: app.canvas.width,
+			allowPreserveDragOutside: true,
+		});
+		// viewport.cullable = true;
+		// viewport.cullableChildren = true;
+		app.stage.addChild(viewport);
+		viewport.drag().pinch().wheel();
+		viewport.label = "viewport";
+		viewport.addEventListener("click", () => {
+			if (!graphicSchemaStore.isDragPan) {
+			}
+			graphicSchemaStore.isDragPan = false;
+		});
+		viewport.addEventListener("drag-start", (event) => {
+			graphicSchemaStore.isDragPan = true;
+		});
 
-    /**
-     * Подгоняет схему под размеры экрана
-     * @param paddingPercent - процент padding от размера экрана
-     */
-    function fitFullSchema(paddingPercent = 5) {
-        const bounds = calculatingBoundsSchema(graphicSchemaStore.pointerObjs, graphicSchemaStore.linearObjs);
-        const scaleX = viewport.screenWidth / bounds.width;
-        const scaleY = viewport.screenHeight / bounds.height;
+		viewport.onrightclick = (event) => {
+			graphicSchemaStore.tool.onContextMenuPane(event);
+		};
 
-        // Берём минимальный, чтобы точно влезло
-        const scale = Math.min(scaleX, scaleY);
-        const paddingScale = scale - (paddingPercent * scale) / 100;
+		return viewport;
+	}
 
-        viewport.setZoom(paddingScale, true); // true = центрировать
-        viewport.moveCenter(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-        return;
-    }
+	/**
+	 * Подгоняет схему под размеры экрана
+	 * @param paddingPercent - процент padding от размера экрана
+	 */
+	function fitFullSchema(paddingPercent = 5) {
+		const bounds = calculatingBoundsSchema(
+			graphicSchemaStore.pointerObjs,
+			graphicSchemaStore.linearObjs,
+		);
+		const scaleX = viewport.screenWidth / bounds.width;
+		const scaleY = viewport.screenHeight / bounds.height;
 
-    function drawGraphicPointer(viewport: Viewport, tool: ITool) {
-        graphicSchemaStore.pointerObjs.forEach(object => {
-            object.draw(viewport, tool);
-        });
-    }
+		// Берём минимальный, чтобы точно влезло
+		const scale = Math.min(scaleX, scaleY);
+		const paddingScale = scale - (paddingPercent * scale) / 100;
 
-    function drawGraphicLinear(viewport: Viewport, tool: ITool) {
-        graphicSchemaStore.linearObjs.forEach(object => {
-            object.draw(viewport, tool);
-        });
-    }
+		viewport.setZoom(paddingScale, true); // true = центрировать
+		viewport.moveCenter(
+			bounds.x + bounds.width / 2,
+			bounds.y + bounds.height / 2,
+		);
+		return;
+	}
 
-    return {
-        renderSchema,
-    };
+	function drawGraphicPointer(viewport: Viewport, tool: ITool) {
+		graphicSchemaStore.pointerObjs.forEach((object) => {
+			object.draw(viewport, tool);
+		});
+	}
+
+	function drawGraphicLinear(viewport: Viewport, tool: ITool) {
+		graphicSchemaStore.linearObjs.forEach((object) => {
+			object.draw(viewport, tool);
+		});
+	}
+
+	return {
+		renderSchema,
+	};
 }

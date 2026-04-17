@@ -48,14 +48,6 @@ export class SelectedPointerGraphicObject extends SelectedGraphicObject {
             this.tool.onContextMenuPointerObject(event, this);
         };
 
-        const tooltip = graphicSchemeStore.tooltipManager;
-        this.graphics.onmouseenter = event => {
-            tooltip?.showTooltip(event.pageX, event.pageY, this);
-        };
-
-        this.graphics.onmouseleave = event => {
-            tooltip?.hideTooltip();
-        };
     }
 
     move(position: XYPosition, viewport: Viewport): void {

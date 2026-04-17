@@ -68,3 +68,16 @@ export function createGraphicObjectFromDto(
 	}
 	throw new Error(`Invalid graphic object dto. ${dto}`);
 }
+
+export function getDescriptionByType(
+	descriptions: ObjectDescription[],
+	featureType: string,
+): ObjectDescription {
+	const description = descriptions.find(
+		(description) => description.featureObjectType === featureType,
+	);
+	if (!description) {
+		throw new Error(`Description not found for type: ${featureType}`);
+	}
+	return description;
+}

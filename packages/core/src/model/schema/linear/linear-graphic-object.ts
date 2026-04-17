@@ -10,6 +10,7 @@ export class LinearGraphicObject extends GraphicObjectScheme {
     thickness: number;
     radiusNode: number;
     backgroundColor: string;
+    fillColor:string;
     classProps?: string;
 
     constructor(info: ObjectInfo) {
@@ -23,7 +24,7 @@ export class LinearGraphicObject extends GraphicObjectScheme {
                   ];
         this.thickness = info.thikness ?? 1;
         this.radiusNode = 2;
-        if (this.graphType) this.classProps = convertToStyle(this.graphType);
+        this.fillColor = info.fillColor ?? "white"
         this.backgroundColor = useGraphicSchemeStore().backroundColor;
     }
 
@@ -33,7 +34,7 @@ export class LinearGraphicObject extends GraphicObjectScheme {
             this.drawElement();
         }
     }
-    refreshPath(points: XYPosition[], viewport: Viewport, tooltip?: IGraphicalEditorTooltip) {
+    refreshPath(points: XYPosition[], viewport: Viewport) {
         this.points = points.map(p => adaptToGrid(p));
         const line = viewport.getChildByLabel(this.idObject.toString()) as Graphics;
         const shadowLine = viewport.getChildByLabel(`${this.idObject}-shadow`) as Graphics;
@@ -57,7 +58,6 @@ export class LinearGraphicObject extends GraphicObjectScheme {
                     width: 1,
                     color: "white",
                 });
-                tooltip?.showTooltip(event.pageX, event.pageY, this);
             };
             node.onpointerleave = event => {
                 event.stopPropagation();
@@ -65,7 +65,6 @@ export class LinearGraphicObject extends GraphicObjectScheme {
                     width: 1,
                     color: "transparent",
                 });
-                tooltip?.hideTooltip();
             };
         });
     }
@@ -92,7 +91,7 @@ export class LinearGraphicObject extends GraphicObjectScheme {
         this.classProps = classStyle;
     }
 
-    draw(viewport: Viewport, tool: ITool, tooltip?: IGraphicalEditorTooltip) {
+    draw(viewport: Viewport, tool: ITool) {
         const graphics = new Graphics();
         graphics.label = this.idObject.toString();
         graphics.interactive = true;
@@ -108,56 +107,40 @@ export class LinearGraphicObject extends GraphicObjectScheme {
         graphics.onrightclick = async event => {
             event.stopPropagation();
             await tool.onMouseDownLinearObject(event, this);
-            await nextTick();
             await tool.onContextMenuLinearObject(event, this.idObject);
         };
-        graphics.onmouseenter = event => {
-            event.stopPropagation();
-            tooltip?.showTooltip(event.pageX, event.pageY, this);
-        };
-
-        graphics.onmouseleave = event => {
-            event.stopPropagation();
-            tooltip?.hideTooltip();
-        };
         graphics.context = this.drawElement();
+
 
         const shadowGraphics = new Graphics();
         shadowGraphics.interactive = true;
         shadowGraphics.onmousedown = async event => {
             await tool.onMouseDownLinearObject(event, this);
         };
-        shadowGraphics.onmouseup = event => {
-            viewport.plugins.resume("drag");
-        };
-        shadowGraphics.onmouseupoutside = event => {
-            viewport.plugins.resume("drag");
-        };
+
         shadowGraphics.onrightclick = async event => {
             event.stopPropagation();
             await tool.onMouseDownLinearObject(event, this);
-            await nextTick();
             await tool.onContextMenuLinearObject(event, this.idObject);
-        };
-
-        shadowGraphics.onmouseenter = event => {
-            event.stopPropagation();
-            tooltip?.showTooltip(event.pageX, event.pageY, this);
-        };
-
-        shadowGraphics.onmouseleave = event => {
-            event.stopPropagation();
-            tooltip?.hideTooltip();
         };
 
         shadowGraphics.context = this.drawShadowElement();
         shadowGraphics.label = `${this.idObject}-shadow`;
-        viewport.addChild(shadowGraphics, graphics, ...this.drawNodes(tool, tooltip));
+        viewport.addChild(shadowGraphics, graphics, ...this.drawNodes(tool));
     }
     drawElement(): GraphicsContext {
-        return new GraphicsContext();
+        const graphics = new GraphicsContext();
+        graphics.moveTo(this.points[0].x, this.points[0].y);
+        for (let i = 1; i < this.points.length; i++) {
+            graphics.lineTo(this.points[i].x, this.points[i].y);
+        }
+        graphics.stroke({
+            width: this.thickness,
+            color: this.fillColor,
+        });
+        return graphics;
     }
-    drawNodes(tool: ITool, tooltip?: IGraphicalEditorTooltip): Graphics[] {
+    drawNodes(tool: ITool): Graphics[] {
         const nodes: Graphics[] = [];
         this.points.forEach((p, i) => {
             const graphics = new Graphics();
@@ -176,7 +159,6 @@ export class LinearGraphicObject extends GraphicObjectScheme {
                     width: 1,
                     color: "white",
                 });
-                tooltip?.showTooltip(event.pageX, event.pageY, this);
             };
             graphics.onpointerleave = event => {
                 event.stopPropagation();
@@ -184,7 +166,6 @@ export class LinearGraphicObject extends GraphicObjectScheme {
                     width: 1,
                     color: "transparent",
                 });
-                tooltip?.hideTooltip();
             };
             graphics.onmousedown = async event => {
                 await tool.onMouseDownLinearObject(event, this, graphics.label);
@@ -199,7 +180,7 @@ export class LinearGraphicObject extends GraphicObjectScheme {
         return nodes;
     }
 
-    resetPath(viewport: Viewport, tool: ITool, tooltip?: IGraphicalEditorTooltip) {
+    resetPath(viewport: Viewport, tool: ITool) {
         this.delete(viewport);
         this.draw(viewport, tool);
     }

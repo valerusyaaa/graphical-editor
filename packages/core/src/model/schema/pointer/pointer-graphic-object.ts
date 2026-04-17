@@ -85,6 +85,8 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 		const scaleY = this.flipVertical ? -1 : 1;
 		graphics.origin.set(this.offsets.left, this.offsets.top);
 		graphics.scale.set(scaleX, scaleY);
+
+        //add graphics in container
 		container.addChild(graphics);
 
 		// подпись объекта (label) строго ниже объекта

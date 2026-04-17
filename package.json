@@ -10,11 +10,12 @@
         "build": "pnpm build:core && pnpm build:demo"
     },
     "dependencies": {
-        "vue": "^3.4.0",
         "@primeuix/utils": "latest",
+        "pinia": "^3.0.4",
         "pixi-viewport": "latest",
         "pixi.js": "latest",
-        "primevue": "latest"
+        "primevue": "latest",
+        "vue": "^3.4.0"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^5.0.0",
