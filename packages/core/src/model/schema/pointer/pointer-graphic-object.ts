@@ -29,14 +29,6 @@ export type ObjectDescription = {
     strokeColor?: string;
 };
 
-export type PointerGraphicObjectDto<Data = any> = {
-    id: number;
-    featureObjectType: string;
-    graphObjectType: ObjectType;
-    position: XYPosition;
-    data?: Data;
-};
-
 export class PointerGraphicObject extends GraphicObjectScheme {
     position: XYPosition;
     rotationAngle: number;
