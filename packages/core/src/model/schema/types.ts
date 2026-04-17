@@ -36,7 +36,21 @@ export type LinearObjectInfo = {
     points: XYPosition[];
 };
 
-export type ObjectInfo<T = any> = {
+
+/**
+ * ObjectInfo — тип, который содержит всю информацию об объекте.
+ *
+ * @param id - Идентификатор объекта.
+ * @param techObjectId - Идентификатор технологического объекта.
+ * @param points - Точки объекта.
+ * @param position - Позиция объекта.
+ * @param rotateAngle - Угол поворота объекта.
+ * @param flipHorizontal - Признак отражения объекта по горизонтали.
+ * @param flipVertical - Признак отражения объекта по вертикали.
+ * @param objectType - Тип объекта.
+ * @param thikness - Толщина объекта.
+ */
+export type ObjectInfo<Data = any> = {
     id: number;
     techObjectId?: number;
     points?: XYPosition[];
@@ -46,10 +60,12 @@ export type ObjectInfo<T = any> = {
     flipVertical?: boolean;
     objectType: ObjectType;
     thikness?: number;
+    strokeWidth?: number;
     offsets?: Offsets;
+    polynom?: XYPosition[];
     fillColor?: string;
     strokeColor?: string;
-    data?: T;
+    data?: Data;
 };
 
 export type SelectedLinearObjectInfo = {

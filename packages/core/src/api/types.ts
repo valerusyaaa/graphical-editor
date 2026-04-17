@@ -6,17 +6,24 @@ export type ObjectDescription = {
     thikness?: number;
     strokeWidth?: number;
     offsets?: Offsets;
-    polynom?: number[]
+    polynom?: XYPosition[]
     fillColor?: string;
     strokeColor?: string;
 
 }
 
-export type GraphicObjectDto <Data = any> = {
+export type GraphicObjectDto <Data extends ObjectBaseData> = {
     id: number;
     featureObjectType: string;
     graphObjectType: ObjectType;
     position?: XYPosition;
     points?: XYPosition[];
+    rotateAngle?: number;
+    flipHorizontal?: boolean;
+    flipVertical?: boolean;
     data?: Data ;
+}
+
+export type ObjectBaseData = {
+    techObjectId: number;
 }

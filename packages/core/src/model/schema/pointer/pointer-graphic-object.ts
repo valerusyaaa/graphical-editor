@@ -1,294 +1,281 @@
-import { type ObjectInfo, type XYPosition, adaptToGrid, GraphicObjectScheme, Offsets } from "../";
-import { useGraphicSchemeStore } from "../..";
 import {
-    BitmapText,
-    Bounds,
-    Container,
-    Graphics,
-    GraphicsContext,
-    Matrix,
-    Point,
-    Polygon,
-    Text,
-    type BoundsData,
-    type IHitArea,
+	type ObjectInfo,
+	type XYPosition,
+	adaptToGrid,
+	GraphicObjectScheme,
+	Offsets,
+} from "../";
+import {
+	Bounds,
+	Container,
+	Graphics,
+	GraphicsContext,
+	Matrix,
+	Point,
+	Polygon,
+	type BoundsData,
+	type IHitArea,
 } from "pixi.js";
 import type { Viewport } from "pixi-viewport";
-
-import type { IGraphicalEditorTooltip, ITool, ManagerTooltip } from "../../..";
-import type { ObjectType } from "../types";
-
-export type ObjectDescription = {
-    featureObjectType: string;
-    graphObjectType: ObjectType;
-    thikness?: number;
-    strokeWidth?: number;
-    offsets?: Offsets;
-    polynom?: number[];
-    fillColor?: string;
-    strokeColor?: string;
-};
+import type { ITool } from "../../tools";
 
 export class PointerGraphicObject extends GraphicObjectScheme {
-    position: XYPosition;
-    rotationAngle: number;
-    flipHorizontal: boolean;
-    flipVertical: boolean;
-    offsets: Offsets;
-    fillColor: string;
-    strokeColor: string = "transparent";
-    transformBounds: BoundsData;
+    // world position
+	position: XYPosition;
+	rotationAngle: number;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+	offsets: Offsets;
+	fillColor: string;
+	strokeColor: string;
+	strokeWidth: number;
+    // local position
+	polynom: XYPosition[];
+	transformBounds: BoundsData;
 
-    constructor(info: ObjectInfo) {
-        const graphicSchemeStore = useGraphicSchemeStore();
-        super(info);
-        this.rotationAngle = info.rotateAngle ?? 0;
-        this.flipHorizontal = info.flipHorizontal ?? false;
-        this.flipVertical = info.flipVertical ?? false;
-        this.objectType = "pointer";
-        this.offsets = info.offsets ?? { left: 0, top: 0 };
-        this.position = this.getComputedNodePosition(info.position!);
-        this.fillColor = info.fillColor ?? "transparent";
-        this.strokeColor = info.strokeColor ?? "transparent";
-        this.transformBounds = new Bounds();
-    }
+	constructor(info: ObjectInfo) {
+		super(info);
+		this.rotationAngle = info.rotateAngle ?? 0;
+		this.flipHorizontal = info.flipHorizontal ?? false;
+		this.flipVertical = info.flipVertical ?? false;
+		this.objectType = "pointer";
+		this.offsets = info.offsets ?? { left: 0, top: 0 };
 
-    refreshPosition(position: XYPosition, viewport: Viewport) {
-        this.position = adaptToGrid(position);
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            container.position.x = position.x;
-            container.position.y = position.y;
-            viewport._onUpdate();
-            this.transformBounds = this.getBounds(viewport);
-        }
-    }
+		this.position = this.getComputedPosition(info.position!);
+		this.fillColor = info.fillColor ?? "transparent";
+		this.strokeColor = info.strokeColor ?? "transparent";
+		this.polynom = info.polynom ?? [];
+		this.strokeWidth = info.strokeWidth ?? 1;
+		this.transformBounds = new Bounds(); // TODO: Возможно нужнео брать из description
+	}
 
-    rotate(angle: number, viewport: Viewport) {
-        this.rotationAngle = angle;
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            container.rotation = (this.rotationAngle * Math.PI) / 180;
-            this.transformBounds = this.getBounds(viewport);
-            viewport._onUpdate();
-        }
-    }
+	/**
+	 * Draw the object.
+	 * @param viewport - The viewport of the object.
+	 * @param tool - The tool of the object.
+	 * @param tooltip - The tooltip of the object.
+	 */
+	draw(viewport: Viewport, tool: ITool): void {
+		//create container
+		const container = new Container();
+		container.label = this.idObject.toString();
+		container.interactive = true;
+		container.origin.set(this.offsets.left, this.offsets.top);
+		container.rotation = (this.rotationAngle * Math.PI) / 180;
+		container.position.set(this.position.x, this.position.y);
 
-    reflectHorizontal(viewport: Viewport) {
-        this.flipHorizontal = !this.flipHorizontal;
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            const graphics = container.getChildByLabel("graphics");
-            if (graphics) {
-                graphics.scale.x = this.flipHorizontal ? -1 : 1;
-                container.hitArea = this.getProcessingHitArea();
-                this.transformBounds = this.getBounds(viewport);
-                viewport._onUpdate();
-            }
-        }
-    }
+		//add event listeners
+		container.onmousedown = async (event) => {
+			await tool.onMouseDownPointerObject(event, this);
+		};
+		container.onrightclick = async (event) => {
+			event.stopPropagation();
+			tool.onContextMenuPointerObject(event, this);
+			await tool.onMouseDownPointerObject(event, this);
+		};
 
-    reflectVertical(viewport: Viewport) {
-        this.flipVertical = !this.flipVertical;
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            const graphics = container.getChildByLabel("graphics");
-            if (graphics) {
-                graphics.scale.y = this.flipVertical ? -1 : 1;
-                container.hitArea = this.getProcessingHitArea();
-                this.transformBounds = this.getBounds(viewport);
-            }
-        }
-    }
+		container.hitArea = this.getProcessingHitArea();
 
-    setStrokeColor(strokeColor: string) {
-        this.strokeColor = strokeColor;
-        const graphicSchemeStore = useGraphicSchemeStore();
-        const viewport = graphicSchemeStore.getViewport();
-        if (!viewport) {
-            return;
-        }
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            const graphics = container.getChildByLabel("graphics") as Graphics;
-            if (graphics) {
-                this.drawElement(graphics.context);
-            }
-        }
-    }
+		//create graphics (фигурка объекта)
+		const graphics = new Graphics();
+		graphics.label = "graphics";
+		this.drawElement(graphics.context);
 
-    setFillColor(fillColor: string) {
-        this.fillColor = fillColor;
-        const graphicSchemeStore = useGraphicSchemeStore();
-        const viewport = graphicSchemeStore.getViewport();
-        if (!viewport) {
-            return;
-        }
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            const graphics = container.getChildByLabel("graphics") as Graphics;
-            if (graphics) {
-                this.drawElement(graphics.context);
-            }
-        }
-    }
-    async setFillStrokeAndDraw(fillColor: string, strokeColor: string, viewport: Viewport) {
-        this.fillColor = fillColor;
-        this.strokeColor = strokeColor;
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            const graphics = container.getChildByLabel("graphics") as Graphics;
-            if (graphics) {
-                this.drawElement(graphics.context);
-            }
-        }
-    }
+		const scaleX = this.flipHorizontal ? -1 : 1;
+		const scaleY = this.flipVertical ? -1 : 1;
+		graphics.origin.set(this.offsets.left, this.offsets.top);
+		graphics.scale.set(scaleX, scaleY);
+		container.addChild(graphics);
 
-    async setFillStrokeColor(fillColor: string, strokeColor: string) {
-        this.fillColor = fillColor;
-        this.strokeColor = strokeColor;
-    }
+		// подпись объекта (label) строго ниже объекта
+		viewport.addChild(container);
+		this.transformBounds = this.getBounds(viewport);
+	}
 
-    delete(viewport: Viewport) {
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            viewport.removeChild(container);
-            container.destroy();
-        }
-    }
+	/**
+	 * Refresh the position of the object.
+	 * @param position - The position of the object.
+	 * @param viewport - The viewport of the object.
+	 */
+	refreshPosition(position: XYPosition, viewport: Viewport) {
+		this.position = adaptToGrid(position);
+		const container = viewport.getChildByLabel(
+			this.idObject.toString(),
+		);
+		if (container) {
+			container.position.x = position.x;
+			container.position.y = position.y;
+			viewport._onUpdate();
+			this.transformBounds = this.getBounds(viewport);
+		}
+	}
 
-    refreshLabel(label: string) {
-        const graphicSchemeStore = useGraphicSchemeStore();
-        const viewport = graphicSchemeStore.getViewport();
-        if (!viewport) {
-            return;
-        }
-        const container = viewport.getChildByLabel(this.idObject.toString());
-        if (container) {
-            const textElement = container.getChildByLabel("textElement") as BitmapText;
-            if (textElement) {
-                textElement.text = label;
-            }
-            viewport._onUpdate();
-        }
-    }
+	/**
+	 * Rotate the object.
+	 * @param angle - The angle of the object.
+	 * @param viewport - The viewport of the object.
+	 */
+	rotate(angle: number, viewport: Viewport) {
+		this.rotationAngle = angle;
+		const container = viewport.getChildByLabel(
+			this.idObject.toString(),
+		);
+		if (container) {
+			container.rotation =
+				(this.rotationAngle * Math.PI) / 180;
+			this.transformBounds = this.getBounds(viewport);
+			viewport._onUpdate();
+		}
+	}
 
-    refreshNodeData<T>(data: T): void {
-        this.data = data;
-    }
+	/**
+	 * Reflect the object horizontally.
+	 * @param viewport - The viewport of the object.
+	 */
+	reflectHorizontal(viewport: Viewport) {
+		this.flipHorizontal = !this.flipHorizontal;
+		const container = viewport.getChildByLabel(
+			this.idObject.toString(),
+		);
+		if (container) {
+			const graphics = container.getChildByLabel("graphics");
+			if (graphics) {
+				graphics.scale.x = this.flipHorizontal ? -1 : 1;
+				container.hitArea = this.getProcessingHitArea();
+				this.transformBounds = this.getBounds(viewport);
+				viewport._onUpdate();
+			}
+		}
+	}
 
-    private getComputedNodePosition(position: XYPosition): XYPosition {
-        return {
-            x: position.x - this.offsets.left,
-            y: position.y - this.offsets.top,
-        };
-    }
+	/**
+	 * Reflect the object vertically.
+	 * @param viewport - The viewport of the object.
+	 */
+	reflectVertical(viewport: Viewport) {
+		this.flipVertical = !this.flipVertical;
+		const container = viewport.getChildByLabel(
+			this.idObject.toString(),
+		);
+		if (container) {
+			const graphics = container.getChildByLabel("graphics");
+			if (graphics) {
+				graphics.scale.y = this.flipVertical ? -1 : 1;
+				container.hitArea = this.getProcessingHitArea();
+				this.transformBounds = this.getBounds(viewport);
+			}
+		}
+	}
 
-    static getComputedPosition(position: XYPosition, graphType: GraphicObjectTypeDto): XYPosition {
-        const offsets = getOffsetsGraphicObject(graphType);
-        return {
-            x: position.x + offsets.left,
-            y: position.y + offsets.top,
-        };
-    }
+	/**
+	 * Delete the object from the viewport.
+	 * @param viewport - The viewport of the object.
+	 */
+	delete(viewport: Viewport) {
+		const container = viewport.getChildByLabel(
+			this.idObject.toString(),
+		);
+		if (container) {
+			viewport.removeChild(container);
+			container.destroy();
+		}
+	}
 
-    draw(viewport: Viewport, tool: ITool, tooltip?: IGraphicalEditorTooltip): void {
-        //create container
-        const container = new Container();
-        container.label = this.idObject.toString();
-        container.interactive = true;
-        container.origin.set(this.offsets.left, this.offsets.top);
-        container.rotation = (this.rotationAngle * Math.PI) / 180;
-        container.position.set(this.position.x, this.position.y);
-        container.onmousedown = async event => {
-            await tool.onMouseDownPointerObject(event, this);
-        };
-        container.onrightclick = async event => {
-            event.stopPropagation();
-            tool.onContextMenuPointerObject(event, this);
-            await tool.onMouseDownPointerObject(event, this);
-        };
+	async setFillStrokeAndDraw(
+		fillColor: string,
+		strokeColor: string,
+		viewport: Viewport,
+	) {
+		this.fillColor = fillColor;
+		this.strokeColor = strokeColor;
+		const container = viewport.getChildByLabel(
+			this.idObject.toString(),
+		);
+		if (container) {
+			const graphics = container.getChildByLabel(
+				"graphics",
+			) as Graphics;
+			if (graphics) {
+				this.drawElement(graphics.context);
+			}
+		}
+	}
 
-        container.onmouseenter = event => {
-            tooltip?.showTooltip(event.pageX, event.pageY, this);
-        };
+	async setFillStrokeColor(fillColor: string, strokeColor: string) {
+		this.fillColor = fillColor;
+		this.strokeColor = strokeColor;
+	}
 
-        container.onmouseleave = event => {
-            tooltip?.hideTooltip();
-        };
+	/**
+	 * Get the computed position of the object.
+	 * @param position - The position of the object.
+	 * @returns The computed position of the object.
+	 */
+	private getComputedPosition(position: XYPosition): XYPosition {
+		return {
+			x: position.x - this.offsets.left,
+			y: position.y - this.offsets.top,
+		};
+	}
 
-        container.hitArea = this.getProcessingHitArea();
+	async drawElement(context: GraphicsContext): Promise<void> {
+		const points = this.polynom.map((p) => new Point(p.x, p.y));
+		context.poly(points)
+			.fill({ color: this.fillColor })
+			.stroke({
+				width: this.strokeWidth,
+				color: this.strokeColor,
+			});
+	}
 
-        //create graphics (фигурка объекта)
-        const graphics = new Graphics();
-        graphics.label = "graphics";
-        this.drawElement(graphics.context);
-        const sclaeX = this.flipHorizontal ? -1 : 1;
-        const scaleY = this.flipVertical ? -1 : 1;
-        graphics.origin.set(this.offsets.left, this.offsets.top);
-        graphics.scale.set(sclaeX, scaleY);
-        container.addChild(graphics);
+	redraw(viewport: Viewport) {
+		const container = viewport.getChildByLabel(`${this.idObject}`);
+		if (container) {
+			const graphics = container.getChildByLabel(
+				"graphics",
+			) as Graphics | undefined;
+			if (graphics) {
+				this.drawElement(graphics.context);
+			}
+		}
+	}
 
-        //статический текст объекта (WBH, GMS, PIG)
-        const text = this.drawTextElement();
-        if (text) {
-            text.label = "textElement";
-            container.addChild(text);
-        }
+	drawSelectedElement(position: XYPosition): GraphicsContext {
+		return new GraphicsContext();
+	}
 
-        // подпись объекта (label) строго ниже объекта
-        viewport.addChild(container);
-        this.transformBounds = this.getBounds(viewport);
-    }
+	getProcessingHitArea() {
+		const scaleX = this.flipHorizontal ? -1 : 1;
+		const scaleY = this.flipVertical ? -1 : 1;
+		const matrix = new Matrix()
+			.translate(-this.offsets.left, -this.offsets.top)
+			.scale(scaleX, scaleY)
+			.translate(this.offsets.left, this.offsets.top);
+		const points = this.getHitAreaPoints();
+		const transformedPoints = points
+			.map((p) => matrix.apply(p))
+			.flatMap((p) => [p.x, p.y]);
+		return new Polygon(transformedPoints);
+	}
 
-    async drawElement(context: GraphicsContext): Promise<void> {}
-    redraw(viewport: Viewport) {
-        const container = viewport.getChildByLabel(`${this.idObject}`);
-        if (container) {
-            const graphics = container.getChildByLabel("graphics") as Graphics | undefined;
-            if (graphics) {
-                this.drawElement(graphics.context);
-            }
-        }
-    }
-    drawTextElement(): BitmapText | Text | undefined {
-        return;
-    }
-
-    drawSelectedElement(position: XYPosition): GraphicsContext {
-        return new GraphicsContext();
-    }
-
-    getProcessingHitArea() {
-        const scaleX = this.flipHorizontal ? -1 : 1;
-        const scaleY = this.flipVertical ? -1 : 1;
-        const matrix = new Matrix()
-            .translate(-this.offsets.left, -this.offsets.top)
-            .scale(scaleX, scaleY)
-            .translate(this.offsets.left, this.offsets.top);
-        const points = this.getHitAreaPoints();
-        const transformedPoints = points.map(p => matrix.apply(p)).flatMap(p => [p.x, p.y]);
-        return new Polygon(transformedPoints);
-    }
-
-    getHitAreaPoints(): Point[] {
-        return [];
-    }
-    getBounds(viewport: Viewport): BoundsData {
-        const points = this.getHitAreaPoints();
-        const transformPoints = points.map(p => {
-            return viewport.worldTransform.apply(p);
-        });
-        const width = Math.max(...points.map(p => p.x));
-        const height = Math.max(...points.map(p => p.y));
-        return {
-            minX: this.position.x,
-            minY: this.position.y,
-            maxX: width + this.position.x,
-            maxY: height + this.position.y,
-        };
-    }
-    transformHitArea(position: XYPosition): IHitArea | undefined {
-        return;
-    }
+	getHitAreaPoints(): Point[] {
+		return [];
+	}
+	getBounds(viewport: Viewport): BoundsData {
+		const points = this.getHitAreaPoints();
+		const transformPoints = points.map((p) => {
+			return viewport.worldTransform.apply(p);
+		});
+		const width = Math.max(...points.map((p) => p.x));
+		const height = Math.max(...points.map((p) => p.y));
+		return {
+			minX: this.position.x,
+			minY: this.position.y,
+			maxX: width + this.position.x,
+			maxY: height + this.position.y,
+		};
+	}
+	transformHitArea(position: XYPosition): IHitArea | undefined {
+		return;
+	}
 }

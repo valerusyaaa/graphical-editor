@@ -1,54 +1,70 @@
 import type { ObjectInfo, ObjectType, XYPosition } from "./types";
 import { LinearGraphicObject } from "./linear/linear-graphic-object";
 import { PointerGraphicObject } from "./pointer/pointer-graphic-object";
+import { Prettify } from "../shared";
+import type {
+	GraphicObjectDto,
+	ObjectBaseData,
+	ObjectDescription,
+} from "../../api";
 
-export type GraphicObjectDto<Data = any> = {
-    id: number;
-    featureObjectType: string;
-    graphObjectType: ObjectType;
-    position?: XYPosition;
-    points?: XYPosition[];
-    data?: Data;
-};
+export type LinearGraphicObjectDto = Prettify<
+	GraphicObjectDto<ObjectBaseData> & {
+		graphObjectType: "linear";
+		points: XYPosition[];
+	}
+>;
 
-export type LinearGraphicObjectDto<Data = any> = GraphicObjectDto<Data> & {
-    graphObjectType: "linear";
-    points: XYPosition[];
-};
+export type PointerGraphicObjectDto = Prettify<
+	GraphicObjectDto<ObjectBaseData> & {
+		graphObjectType: "pointer";
+		position: XYPosition;
+	}
+>;
 
-export type PointerGraphicObjectDto<Data = any> = GraphicObjectDto<Data> & {
-    graphObjectType: "pointer";
-    position: XYPosition;
-};
-
-export function isLinearGraphicObjectDto<Data = any>(dto: GraphicObjectDto<Data>): dto is LinearGraphicObjectDto<Data> {
-    return dto.graphObjectType === "linear" && Array.isArray(dto.points);
+export function isLinearGraphicObjectDto(
+	dto: GraphicObjectDto<ObjectBaseData>,
+): dto is LinearGraphicObjectDto {
+	return dto.graphObjectType === "linear" && Array.isArray(dto.points);
 }
 
-export function isPointerGraphicObjectDto<Data = any>(
-    dto: GraphicObjectDto<Data>
-): dto is PointerGraphicObjectDto<Data> {
-    return dto.graphObjectType === "pointer" && dto.position !== undefined;
+export function isPointerGraphicObjectDto(
+	dto: GraphicObjectDto<ObjectBaseData>,
+) {
+	return dto.graphObjectType === "pointer" && dto.position !== undefined;
 }
 
-function toObjectInfo<Data = any>(dto: GraphicObjectDto<Data>): ObjectInfo<Data> {
-    return {
-        id: dto.id,
-        objectType: dto.graphObjectType,
-        position: dto.position,
-        points: dto.points,
-        data: dto.data,
-    };
+function toObjectInfo<Data extends ObjectBaseData>(
+	dto: GraphicObjectDto<Data>,
+	description: ObjectDescription,
+): ObjectInfo<Data> {
+	return {
+		id: dto.id,
+		objectType: dto.graphObjectType,
+		position: dto.position,
+		points: dto.points,
+		rotateAngle: dto.rotateAngle,
+		flipHorizontal: dto.flipHorizontal,
+		flipVertical: dto.flipVertical,
+		strokeWidth: description.strokeWidth,
+		data: dto.data,
+		thikness: description.thikness,
+		offsets: description.offsets,
+		polynom: description.polynom,
+		fillColor: description.fillColor,
+		strokeColor: description.strokeColor,
+	};
 }
 
-export function createGraphicObjectFromDto<Data = any>(
-    dto: GraphicObjectDto<Data>
+export function createGraphicObjectFromDto(
+	dto: GraphicObjectDto<ObjectBaseData>,
+	description: ObjectDescription,
 ): PointerGraphicObject | LinearGraphicObject {
-    if (isPointerGraphicObjectDto(dto)) {
-        return new PointerGraphicObject(toObjectInfo(dto));
-    }
-    if (isLinearGraphicObjectDto(dto)) {
-        return new LinearGraphicObject(toObjectInfo(dto));
-    }
-    throw new Error(`Invalid graphic object dto. id=${dto.id}, type=${dto.graphObjectType}`);
+	if (isPointerGraphicObjectDto(dto)) {
+		return new PointerGraphicObject(toObjectInfo(dto, description));
+	}
+	if (isLinearGraphicObjectDto(dto)) {
+		return new LinearGraphicObject(toObjectInfo(dto, description));
+	}
+	throw new Error(`Invalid graphic object dto. ${dto}`);
 }
