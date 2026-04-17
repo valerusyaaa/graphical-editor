@@ -4,7 +4,6 @@ import {
 	BaseTool,
 	useGraphicSchemeStore,
 	useRenderSchema,
-	type ITool,
 } from "..";
 import { Application, CullerPlugin, extensions } from "pixi.js";
 import {
@@ -21,7 +20,7 @@ import { GraphicObjectDto, ObjectDescription } from "../api";
 const props = defineProps<{
 	objects: GraphicObjectDto<any>[];
 	descriptions: ObjectDescription[];
-	tool?: ITool;
+	tool?: BaseTool;
 	winRef: HTMLDivElement | any;
 }>();
 

@@ -4,7 +4,7 @@ import type {
 	PointerGraphicObject,
 	SelectedLinearGraphicObject,
 	SelectedPointerGraphicObject,
-} from "../schema";
+} from "../model/schema";
 
 export interface ITool {
 	contextMenu: any;

@@ -5,7 +5,7 @@ import type {
     SelectedLinearGraphicObject,
     SelectedPointerGraphicObject,
 } from "../schema";
-import type { ITool } from "./itool";
+import type { ITool } from "../../api/itool";
 import type { MenuItem } from "primevue/menuitem";
 
 export class BaseTool implements ITool {

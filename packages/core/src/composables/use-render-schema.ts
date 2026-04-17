@@ -4,12 +4,12 @@ import {
 	createGraphicObjectFromDto,
 	getDescriptionByType,
 	useGraphicSchemeStore,
-	type ITool,
 } from "../model";
 import { calculatingBoundsSchema } from "../lib";
 import { GraphicObjectDto, ObjectDescription } from "../api";
 import { Ref, watch } from "vue";
 import { PointerGraphicObject, LinearGraphicObject } from "../model";
+import { ITool } from "../api/itool";
 
 export function useRenderSchema(
 	objects: Ref<GraphicObjectDto<any>[]>,
