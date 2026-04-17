@@ -28,17 +28,4 @@ export class BaseTool implements ITool {
     async onContextMenuTextualObject(event: FederatedPointerEvent, objectId: number): Promise<void> {}
     async onContextMenuSelectedArea(event: FederatedPointerEvent): Promise<void> {}
     async onContextMenuPane(event: FederatedPointerEvent): Promise<void> {}
-    async onSelectionAreaEnd(
-        hitPointerObjects: PointerGraphicObject[],
-        hitLinearObjects: LinearGraphicObject[],
-        isDraw: boolean
-    ): Promise<{
-        selectedPointerObjects: SelectedPointerGraphicObject[];
-        selectedLinearObjects: SelectedLinearGraphicObject[];
-    }>{
-        return {
-            selectedLinearObjects:[],
-            selectedPointerObjects:[],
-        }
-    }
 }
