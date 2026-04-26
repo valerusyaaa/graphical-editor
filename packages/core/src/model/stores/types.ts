@@ -6,7 +6,7 @@ import {
 	SelectedLinearGraphicObject,
 	SelectedPointerGraphicObject,
 } from "..";
-import { type ITool } from "../tools";
+import type { ITool } from "../../api/itool";
 import type { Application } from "pixi.js";
 
 export type NodeTemplate = {

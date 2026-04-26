@@ -1,80 +1,15 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import {
-	GraphicObjectDto,
-	ObjectDescription,
-} from "../../packages/core/src/api/types";
 import { GraphicalEditor } from "../../packages/core/src/ui";
-
-const clicked = ref(false);
+import { baseApiObjects } from "./data/base-objects";
+import { mapApiToEditorPayload } from "./lib/editor-adapter";
+import { DemoTool } from "./tools/demo-tool";
 
 const winRef = ref();
-const onCoreClick = () => {
-	clicked.value = true;
-};
-
-type ObjectData = {
-	techObjectId: number;
-};
-
-const objects = ref<GraphicObjectDto<ObjectData>[]>([
-	{
-		id: 1,
-		featureObjectType: "square",
-		graphObjectType: "pointer",
-		position: {
-			x: 100,
-			y: 100,
-		},
-		data: {
-			techObjectId: 1,
-		},
-	},
-	{
-		id: 2,
-		featureObjectType: "square",
-		graphObjectType: "pointer",
-		position: {
-			x: 200,
-			y: 200,
-		},
-		data: {
-			techObjectId: 2,
-		},
-	},
-]);
-const descriptions = ref<ObjectDescription[]>([
-	{
-		featureObjectType: "square",
-		graphObjectType: "pointer",
-		thikness: 10,
-		strokeWidth: 1,
-		offsets: {
-			top: 0,
-			left: 0,
-		},
-		polynom: [
-			{
-				x: 0,
-				y: 0,
-			},
-			{
-				x: 100,
-				y: 0,
-			},
-			{
-				x: 100,
-				y: 100,
-			},
-			{
-				x: 0,
-				y: 100,
-			},
-		],
-		fillColor: "red",
-		strokeColor: "blue",
-	},
-]);
+const tool = new DemoTool();
+const payload = mapApiToEditorPayload(baseApiObjects);
+const objects = ref(payload.objects);
+const descriptions = ref(payload.descriptions);
 </script>
 
 <template>
@@ -91,12 +26,8 @@ const descriptions = ref<ObjectDescription[]>([
 				win-ref="winRef"
 				:objects="objects"
 				:descriptions="descriptions"
+				:tool="tool"
 			/>
-
-			<p v-if="clicked" class="status">
-				Событие <code>click</code> получено из
-				core-компонента.
-			</p>
 		</section>
 	</main>
 </template>
@@ -150,12 +81,4 @@ code {
 	border-radius: 0.25rem;
 }
 
-.status {
-	margin-top: 1rem;
-	font-weight: 500;
-	color: #166534;
-	background: #dcfce7;
-	padding: 0.5rem 0.75rem;
-	border-radius: 0.5rem;
-}
 </style>

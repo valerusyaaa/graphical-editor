@@ -73,7 +73,23 @@ export function useRenderSchema(
 		// viewport.cullable = true;
 		// viewport.cullableChildren = true;
 		app.stage.addChild(viewport);
-		viewport.drag().pinch().wheel();
+		viewport.drag({ wheel: false }).pinch();
+		// Keep page scroll for regular wheel over canvas, but handle pinch-zoom inside editor.
+		app.canvas.addEventListener(
+			"wheel",
+			(event: WheelEvent) => {
+				// Trackpad pinch is emitted as ctrl + wheel in browsers.
+				if (!event.ctrlKey) {
+					return;
+				}
+				event.preventDefault();
+				const currentZoom = viewport.scale.x;
+				const zoomDelta = Math.exp(-event.deltaY * 0.002);
+				const nextZoom = Math.min(8, Math.max(0.2, currentZoom * zoomDelta));
+				viewport.setZoom(nextZoom, true);
+			},
+			{ passive: false },
+		);
 		viewport.label = "viewport";
 		viewport.addEventListener("click", () => {
 			if (!graphicSchemaStore.isDragPan) {
