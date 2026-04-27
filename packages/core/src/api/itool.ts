@@ -7,7 +7,6 @@ import type {
 } from "../model/schema";
 
 export interface ITool {
-	contextMenu: any;
 	onMouseDownPointerObject(
 		event: FederatedPointerEvent,
 		object: PointerGraphicObject,

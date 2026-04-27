@@ -1,27 +1,27 @@
 import type { FederatedPointerEvent } from "pixi.js";
 import type { Viewport } from "pixi-viewport";
-import { BaseTool } from "../../../packages/core/src";
 import type {
 	LinearGraphicObject,
 	PointerGraphicObject,
 	SelectedLinearGraphicObject,
 	SelectedPointerGraphicObject,
-} from "../../../packages/core/src/model";
+    XYPosition,
+} from "../../../packages/core/src";
 import { useGraphicSchemeStore } from "../../../packages/core/src/model/stores";
+import { ITool } from "../../../packages/core/src/api/itool";
 
-type XY = { x: number; y: number };
-
-export class DemoTool extends BaseTool {
+export class DemoTool implements ITool {
 	private dragAbort?: AbortController;
-
-	constructor() {
-		super();
-	}
-
 	async onMouseDownPointerObject(
 		event: FederatedPointerEvent,
 		object: PointerGraphicObject,
 	): Promise<void> {
+
+        /**
+         * 1. Создание выделенного объекта отдельной функцией
+         * 2. Регистрация событий на дивжение мыши (здесь перемещается выделеный объект)
+         * 3. Регистрация на mouseup (здесь перемещается выделеный базовый объекта туда где находится выделеный)
+         */
 		const viewport = this.getViewport();
 		if (!viewport) return;
 		const start = this.getWorldPoint(viewport, this.toMouseLike(event));
@@ -75,6 +75,10 @@ export class DemoTool extends BaseTool {
 		event: MouseEvent,
 		object: SelectedPointerGraphicObject,
 	): Promise<void> {
+        /**
+         * 1. Регистрация событий на дивжение мыши (здесь перемещается выделеный объект)
+         * 2. Регистрация на mouseup (здесь перемещается выделеный базовый объекта туда где находится выделеный)
+         */
 		const viewport = this.getViewport();
 		if (!viewport) return;
 		const start = this.getWorldPoint(viewport, event);
@@ -178,8 +182,8 @@ export class DemoTool extends BaseTool {
 
 	private startDrag(
 		viewport: Viewport,
-		start: XY,
-		onDelta: (delta: XY) => void,
+		start: XYPosition,
+		onDelta: (delta: XYPosition) => void,
 	): void {
 		this.stopCurrentDrag();
 		const abort = new AbortController();
@@ -217,7 +221,7 @@ export class DemoTool extends BaseTool {
 		}
 	}
 
-	private getWorldPoint(viewport: Viewport, event: MouseEvent): XY | null {
+	private getWorldPoint(viewport: Viewport, event: MouseEvent): XYPosition | null {
 		const store = useGraphicSchemeStore();
 		const appPosition = store.getPositionApp;
 		return viewport.toWorld(

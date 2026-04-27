@@ -10,7 +10,7 @@ import {
 import { type Graphics } from "pixi.js";
 import { Viewport } from "pixi-viewport";
 import { useGraphicSchemeStore } from "../../stores";
-import type { ITool } from "../../tools";
+import type { ITool } from "../../../api/itool";
 
 export class SelectedPointerGraphicObject extends SelectedGraphicObject {
     objectScheme?: PointerGraphicObject | null;
