@@ -1,1 +1,2 @@
-export * from "./base-tool"
+export type { ITool } from "../../api/itool";
+export * from "./base-tool";

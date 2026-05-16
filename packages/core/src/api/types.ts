@@ -9,6 +9,8 @@ export type ObjectDescription = {
     polynom?: XYPosition[]
     fillColor?: string;
     strokeColor?: string;
+    /** Цвет контура слоя selection (без заливки), если поддерживается типом объекта */
+    selectionStrokeColor?: string;
 
 }
 
@@ -26,4 +28,6 @@ export type GraphicObjectDto <Data extends ObjectBaseData> = {
 
 export type ObjectBaseData = {
     techObjectId: number;
+    /** Идентификатор типа из БД метамодели (`object_types.id`, UUID). */
+    objectTypeId?: string;
 }

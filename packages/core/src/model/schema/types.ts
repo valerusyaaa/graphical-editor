@@ -52,6 +52,8 @@ export type LinearObjectInfo = {
  */
 export type ObjectInfo<Data = any> = {
     id: number;
+    /** Тип по домену (valve, pipe, producer и т.д.) — для кастомной отрисовки pointer. */
+    featureObjectType?: string;
     techObjectId?: number;
     points?: XYPosition[];
     position?: XYPosition;
@@ -65,6 +67,7 @@ export type ObjectInfo<Data = any> = {
     polynom?: XYPosition[];
     fillColor?: string;
     strokeColor?: string;
+    selectionStrokeColor?: string;
     data?: Data;
 };
 

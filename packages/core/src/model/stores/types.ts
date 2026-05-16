@@ -32,6 +32,7 @@ export type GraphicSchemeState = {
 	app: Application | undefined;
 	isDragObjects: boolean;
 	isDragPan: boolean;
+	selectionDragObjectId: number | null;
 	backroundColor: string;
 	preRenderCbs: (() => void)[];
 	postRenderCbs: (() => void)[];

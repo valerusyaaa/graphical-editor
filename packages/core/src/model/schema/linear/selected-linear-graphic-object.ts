@@ -32,6 +32,16 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
         this.createGraphicsLine();
         this.shadowGraphicsLine = this.createGraphicsShadowLine();
         this.nodes = this.createNodes();
+        this.setOutlineVisible(false);
+    }
+
+    /** Показать/скрыть контур выделения и узлы (до hover или во время drag). */
+    setOutlineVisible(visible: boolean): void {
+        this.graphics.visible = visible;
+        this.shadowGraphicsLine.visible = visible;
+        this.nodes.forEach((n) => {
+            n.graphics.visible = visible;
+        });
     }
 
     private createGraphicsLine() {
@@ -45,7 +55,7 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
             this.tool.onContextMenuLinearObject(event, this.idObject);
         };
 
-        this.graphics.zIndex = 3;
+        this.graphics.zIndex = 15;
     }
 
     private createGraphicsShadowLine(): Graphics {
@@ -61,7 +71,7 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
         };
 
         const graphicSchemeStore = useGraphicSchemeStore();
-        shadowGraphicsLine.zIndex = 3;
+        shadowGraphicsLine.zIndex = 15;
         return shadowGraphicsLine;
     }
 
@@ -69,7 +79,7 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
         return this.points.map<LineNode>((p, i) => {
             const graphics = new Graphics();
             const objectId = `${this.idObject}-${i}`;
-            graphics.context = this.getNodeContext(adaptToGrid(p));
+            graphics.context = this.getNodeContext(p);
             graphics.interactive = true;
             graphics.eventMode = "static";
             graphics.hitArea = new Circle(p.x, p.y, 4);
@@ -87,40 +97,10 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
     }
 
     private getLineContext(points: XYPosition[]): GraphicsContext {
-        const context = new GraphicsContext();
-        const gap = 3;
-        const dash = 3;
-        for (let i = 1; i < points.length; i++) {
-            context.moveTo(points[i - 1].x, points[i - 1].y);
-            const length = Math.sqrt((points[i].x - points[i - 1].x) ** 2 + (points[i].y - points[i - 1].y) ** 2);
-            const segmentCount = length / (gap + dash);
-
-            const cos = (points[i].x - points[i - 1].x) / length;
-            const sin = (points[i].y - points[i - 1].y) / length;
-
-            const dashCos = dash * cos;
-            const dashSin = dash * sin;
-
-            const gapCos = gap * cos;
-            const gapSin = gap * sin;
-
-            for (let j = 1; j <= segmentCount; j++) {
-                const movePointx = points[i - 1].x + j * (gapCos + dashCos);
-                const movePointy = points[i - 1].y + j * (gapSin + dashSin);
-
-                const linePointx = movePointx - gapCos;
-                const linePointy = movePointy - gapSin;
-
-                context.lineTo(linePointx, linePointy).moveTo(movePointx, movePointy);
-            }
+        if (this.objectScheme) {
+            return this.objectScheme.getSelectionPipeOutline(points);
         }
-        context.stroke({
-            width: 1,
-            color: "white",
-            cap: "round",
-        });
-
-        return context;
+        return new GraphicsContext();
     }
 
     private getShadowLineContext(points: XYPosition[]): GraphicsContext {
@@ -162,10 +142,10 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
     }
 
     override draw(): Graphics[] {
-        this.graphics.context = this.getLineContext(this.points.map(p => adaptToGrid(p)));
-        this.shadowGraphicsLine.context = this.getShadowLineContext(this.points.map(p => adaptToGrid(p)));
+        this.graphics.context = this.getLineContext(this.points);
+        this.shadowGraphicsLine.context = this.getShadowLineContext(this.points);
         this.nodes.forEach((n, i) => {
-            const point = adaptToGrid(this.points[i]);
+            const point = this.points[i];
             n.graphics.context = this.getNodeContext(point);
             n.graphics.hitArea = new Circle(point.x, point.y, 2 + 1);
             n.graphics.zIndex = 5;
@@ -200,8 +180,8 @@ export class SelectedLinearGraphicObject extends SelectedGraphicObject {
             this.objectScheme.resetPath(viewport, this.tool);
             this.nodes.forEach(n => n.graphics.destroy());
             this.nodes = this.createNodes();
-            this.graphics.context = this.getLineContext(this.points.map(p => adaptToGrid(p)));
-            this.shadowGraphicsLine.context = this.getShadowLineContext(this.points.map(p => adaptToGrid(p)));
+            this.graphics.context = this.getLineContext(this.points);
+            this.shadowGraphicsLine.context = this.getShadowLineContext(this.points);
             viewport.addChild(...this.nodes.map(n => n.graphics));
             viewport._onUpdate();
             viewport.update(2);

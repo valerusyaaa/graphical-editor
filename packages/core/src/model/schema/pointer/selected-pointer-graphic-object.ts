@@ -65,7 +65,7 @@ export class SelectedPointerGraphicObject extends SelectedGraphicObject {
         this.rotationAngle = angle;
         if (this.objectScheme) {
             this.objectScheme.rotate(this.rotationAngle, viewport);
-            this.graphics.context = this.objectScheme.drawSelectedElement(adaptToGrid(this.position));
+            this.graphics.context = this.objectScheme.drawSelectedElement(this.position);
         }
     }
 
@@ -75,7 +75,7 @@ export class SelectedPointerGraphicObject extends SelectedGraphicObject {
         }
         this.flipHorizontal = !this.flipHorizontal;
         this.objectScheme.reflectHorizontal(viewport);
-        this.graphics.context = this.objectScheme.drawSelectedElement(adaptToGrid(this.position));
+        this.graphics.context = this.objectScheme.drawSelectedElement(this.position);
     }
 
     reflectVertical(viewport: Viewport): void {
@@ -84,7 +84,7 @@ export class SelectedPointerGraphicObject extends SelectedGraphicObject {
         }
         this.flipVertical = !this.flipVertical;
         this.objectScheme.reflectVertical(viewport);
-        this.graphics.context = this.objectScheme.drawSelectedElement(adaptToGrid(this.position));
+        this.graphics.context = this.objectScheme.drawSelectedElement(this.position);
     }
 
     delete(viewport: Viewport) {
@@ -105,8 +105,8 @@ export class SelectedPointerGraphicObject extends SelectedGraphicObject {
 
     draw(): Graphics {
         if (this.objectScheme) {
-            this.graphics.context = this.objectScheme.drawSelectedElement(adaptToGrid(this.position));
-            this.graphics.hitArea = this.objectScheme.transformHitArea(adaptToGrid(this.position));
+            this.graphics.context = this.objectScheme.drawSelectedElement(this.position);
+            this.graphics.hitArea = this.objectScheme.transformHitArea(this.position);
         }
         return this.graphics;
     }

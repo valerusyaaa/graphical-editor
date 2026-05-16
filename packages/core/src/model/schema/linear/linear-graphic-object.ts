@@ -1,8 +1,8 @@
 import { type ObjectInfo, convertToStyle, GraphicObjectScheme, adaptToGrid, type LineNode, type XYPosition } from "..";
+import { markSchemaViewportChild } from "../../../lib/schema-viewport-mark";
 import { Circle, Graphics, GraphicsContext } from "pixi.js";
 import type { Viewport } from "pixi-viewport";
 import { useGraphicSchemeStore } from "../../stores";
-import type { IGraphicalEditorTooltip } from "../../../composables";
 import type { ITool } from "../../tools";
 
 export class LinearGraphicObject extends GraphicObjectScheme {
@@ -12,6 +12,7 @@ export class LinearGraphicObject extends GraphicObjectScheme {
     backgroundColor: string;
     fillColor:string;
     classProps?: string;
+    selectionStrokeColor: string;
 
     constructor(info: ObjectInfo) {
         super(info);
@@ -25,7 +26,60 @@ export class LinearGraphicObject extends GraphicObjectScheme {
         this.thickness = info.thikness ?? 1;
         this.radiusNode = 2;
         this.fillColor = info.fillColor ?? "white"
+        this.selectionStrokeColor = info.selectionStrokeColor ?? "#93c5fd";
         this.backgroundColor = useGraphicSchemeStore().backroundColor;
+    }
+
+    /**
+     * Контур выделения трубы: для двух точек — обводка прямоугольником вокруг сегмента,
+     * иначе — линия по траектории с полым видом (только stroke).
+     */
+    getSelectionPipeOutline(points: XYPosition[]): GraphicsContext {
+        const ctx = new GraphicsContext();
+        const color = this.selectionStrokeColor;
+        const pad = 4;
+        const hw = this.thickness / 2 + pad;
+        if (points.length < 2) {
+            return ctx;
+        }
+        if (points.length === 2) {
+            const a = points[0];
+            const b = points[1];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const len = Math.hypot(dx, dy) || 1;
+            const nx = (-dy / len) * hw;
+            const ny = (dx / len) * hw;
+            const poly = [
+                a.x + nx,
+                a.y + ny,
+                b.x + nx,
+                b.y + ny,
+                b.x - nx,
+                b.y - ny,
+                a.x - nx,
+                a.y - ny,
+            ];
+            ctx
+                .poly(poly)
+                .fill({ color: 0xffffff, alpha: 0 })
+                .stroke({
+                    width: 2,
+                    color,
+                });
+            return ctx;
+        }
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.stroke({
+            width: this.thickness + pad * 2,
+            color,
+            cap: "round",
+            join: "round",
+        });
+        return ctx;
     }
 
     redraw(viewport: Viewport) {
@@ -126,7 +180,13 @@ export class LinearGraphicObject extends GraphicObjectScheme {
 
         shadowGraphics.context = this.drawShadowElement();
         shadowGraphics.label = `${this.idObject}-shadow`;
-        viewport.addChild(shadowGraphics, graphics, ...this.drawNodes(tool));
+		markSchemaViewportChild(shadowGraphics);
+		markSchemaViewportChild(graphics);
+		const nodes = this.drawNodes(tool);
+		for (const n of nodes) {
+			markSchemaViewportChild(n);
+		}
+        viewport.addChild(shadowGraphics, graphics, ...nodes);
     }
     drawElement(): GraphicsContext {
         const graphics = new GraphicsContext();

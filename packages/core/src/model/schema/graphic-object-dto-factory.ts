@@ -41,8 +41,9 @@ function toObjectInfo<Data extends ObjectBaseData>(
 	return {
 		id: dto.id,
 		objectType: dto.graphObjectType,
-		position: dto.position,
-		points: dto.points,
+		featureObjectType: dto.featureObjectType,
+		position: dto.position ? { ...dto.position } : dto.position,
+		points: dto.points?.map((p) => ({ ...p })),
 		rotateAngle: dto.rotateAngle,
 		flipHorizontal: dto.flipHorizontal,
 		flipVertical: dto.flipVertical,
@@ -53,6 +54,7 @@ function toObjectInfo<Data extends ObjectBaseData>(
 		polynom: description.polynom,
 		fillColor: description.fillColor,
 		strokeColor: description.strokeColor,
+		selectionStrokeColor: description.selectionStrokeColor,
 	};
 }
 

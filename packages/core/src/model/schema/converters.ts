@@ -1,3 +1,27 @@
+/** Типы объектов схемы для CSS-классов (см. `convertToStyleName`). */
+export enum GraphicObjectTypeDto {
+	BlowdownValve = "BlowdownValve",
+	CheckValve = "CheckValve",
+	Consumer = "Consumer",
+	ControlValve = "ControlValve",
+	ElectricalHeater = "ElectricalHeater",
+	Producer = "Producer",
+	Pipe = "Pipe",
+	PipelineSegment = "PipelineSegment",
+	Valve = "Valve",
+	SmallValve = "SmallValve",
+	SmallControlValve = "SmallControlValve",
+	WaterbathHeater = "WaterbathHeater",
+	FlowRateMeter = "FlowRateMeter",
+	GasSeparationUnit = "GasSeparationUnit",
+	GasMeteringStation = "GasMeteringStation",
+	LauncherPigTrap = "LauncherPigTrap",
+	ReceiverPigTrap = "ReceiverPigTrap",
+	Sensor = "Sensor",
+	Endpoint = "Endpoint",
+	SubsystemSeparator = "SubsystemSeparator",
+}
+
 export function convertToStyleName(graphicObjectType: GraphicObjectTypeDto, selected: boolean): string {
     let result = "";
     switch (graphicObjectType) {

@@ -26,6 +26,8 @@ export const useGraphicSchemeStore = defineStore("graphic-scheme", {
         tool: new BaseTool(),
         isDragObjects: true,
         isDragPan: false,
+        /** id объекта слоя selection во время перетаскивания (чтобы не скрывать контур при pointerleave) */
+        selectionDragObjectId: null as number | null,
         backroundColor: "black",
         preRenderCbs: [],
         postRenderCbs: [],

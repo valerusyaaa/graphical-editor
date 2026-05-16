@@ -1,7 +1,6 @@
-
-import type { ITool, ObjectInfo, ObjectType } from "..";
+import type { ObjectInfo, ObjectType } from "..";
+import type { ITool } from "../tools";
 import type { Viewport } from "pixi-viewport";
-import type { IGraphicalEditorTooltip, ManagerTooltip } from "../..";
 
 export abstract class GraphicObjectScheme<T = any> {
     idObject: number;

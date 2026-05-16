@@ -1,4 +1,8 @@
 import type { ObjectDescription } from "../../../packages/core/src/api/types";
+import {
+	CONSUMER_POINTER_SIDE,
+	getConsumerOuterPolynom,
+} from "../../../packages/core/src/model/schema/pointer/pointer-graphic-object";
 
 export const baseDescriptors: ObjectDescription[] = [
 	{
@@ -6,11 +10,12 @@ export const baseDescriptors: ObjectDescription[] = [
 		graphObjectType: "linear",
 		thikness: 10,
 		strokeWidth: 1,
-		fillColor: "blue",
-		strokeColor: "blue",
+		fillColor: "#858585",
+		strokeColor: "#858585",
+		selectionStrokeColor: "#93c5fd",
 	},
 	{
-		featureObjectType: "valve",
+		featureObjectType: "gate_valve",
 		graphObjectType: "pointer",
 		thikness: 10,
 		strokeWidth: 1,
@@ -26,7 +31,36 @@ export const baseDescriptors: ObjectDescription[] = [
 			{ x: 50, y: 50 },
 			{ x: 20, y: 25 },
 		],
-		fillColor: "red",
-		strokeColor: "blue",
+		fillColor: "#ef4444",
+		strokeColor: "#b91c1c",
+		selectionStrokeColor: "#fca5a5",
+	},
+	{
+		featureObjectType: "supplier",
+		graphObjectType: "pointer",
+		thikness: 10,
+		strokeWidth: 2,
+		offsets: { top: 0, left: 0 },
+		/** Контур квадрата: hit-area и outline selection. */
+		polynom: [
+			{ x: 0, y: 0 },
+			{ x: 48, y: 0 },
+			{ x: 48, y: 48 },
+			{ x: 0, y: 48 },
+		],
+		fillColor: "#a3a3a3",
+		strokeColor: "#000000",
+		selectionStrokeColor: "#93c5fd",
+	},
+	{
+		featureObjectType: "consumer",
+		graphObjectType: "pointer",
+		thikness: 10,
+		strokeWidth: 2,
+		offsets: { top: 0, left: 0 },
+		polynom: getConsumerOuterPolynom(CONSUMER_POINTER_SIDE),
+		fillColor: "#a3a3a3",
+		strokeColor: "#000000",
+		selectionStrokeColor: "#fca5a5",
 	},
 ];

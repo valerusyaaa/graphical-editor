@@ -7,7 +7,10 @@ import type {
 	SelectedLinearGraphicObject,
 	SelectedPointerGraphicObject,
 } from "../../../packages/core/src/model";
-import { useGraphicSchemeStore } from "../../../packages/core/src/model/stores";
+import {
+	useEditorClipboardStore,
+	useGraphicSchemeStore,
+} from "../../../packages/core/src/model/stores";
 
 type XY = { x: number; y: number };
 
@@ -22,20 +25,47 @@ export class DemoTool extends BaseTool {
 		event: FederatedPointerEvent,
 		object: PointerGraphicObject,
 	): Promise<void> {
+		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
-		const start = this.getWorldPoint(viewport, this.toMouseLike(event));
+		const store = useGraphicSchemeStore();
+		const selected = store.selectedPointerObjs.find(
+			(s) => s.idObject === object.idObject,
+		);
+		if (!selected) return;
+		event.stopPropagation();
+		const start = this.getWorldPoint(viewport, event);
 		if (!start) return;
 
-		this.startDrag(viewport, start, (delta) => {
-			object.refreshPosition(
-				{
-					x: object.position.x + delta.x,
-					y: object.position.y + delta.y,
-				},
-				viewport,
-			);
-		});
+		selected.graphics.visible = true;
+		selected.graphics.eventMode = "static";
+		store.selectionDragObjectId = object.idObject;
+
+		this.startDrag(
+			viewport,
+			start,
+			(delta) => {
+				selected.position = {
+					x: selected.position.x + delta.x,
+					y: selected.position.y + delta.y,
+				};
+				selected.draw();
+			},
+			() => {
+				store.selectionDragObjectId = null;
+				object.refreshPosition(selected.position, viewport);
+				useEditorClipboardStore().syncPointerGeometryFromScheme(
+					object.idObject,
+					object.position,
+					object.offsets,
+				);
+				selected.position = {
+					x: object.position.x,
+					y: object.position.y,
+				};
+				selected.draw();
+			},
+		);
 	}
 
 	async onMouseDownLinearObject(
@@ -43,53 +73,117 @@ export class DemoTool extends BaseTool {
 		object: LinearGraphicObject,
 		selectedNodeId?: string,
 	): Promise<void> {
+		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
-		const start = this.getWorldPoint(viewport, this.toMouseLike(event));
+		const store = useGraphicSchemeStore();
+		const selected = store.selectedLinearObjs.find(
+			(s) => s.idObject === object.idObject,
+		);
+		if (!selected) return;
+		event.stopPropagation();
+		const start = this.getWorldPoint(viewport, event);
 		if (!start) return;
+
+		selected.setOutlineVisible(true);
 
 		if (selectedNodeId) {
 			const nodeIndex = this.getNodeIndex(selectedNodeId);
-			if (nodeIndex < 0 || nodeIndex >= object.points.length) return;
-			this.startDrag(viewport, start, (delta) => {
-				const points = object.points.map((point, index) =>
-					index === nodeIndex
-						? { x: point.x + delta.x, y: point.y + delta.y }
-						: point,
-				);
-				object.refreshPath(points, viewport);
-			});
+			if (nodeIndex < 0 || nodeIndex >= selected.points.length) return;
+			store.selectionDragObjectId = object.idObject;
+			this.startDrag(
+				viewport,
+				start,
+				(delta) => {
+					selected.points = selected.points.map((point, index) =>
+						index === nodeIndex
+							? {
+									x: point.x + delta.x,
+									y: point.y + delta.y,
+								}
+							: point,
+					);
+					selected.draw();
+				},
+				() => {
+					store.selectionDragObjectId = null;
+					object.refreshPath(selected.points, viewport);
+					useEditorClipboardStore().syncLinearGeometryFromScheme(
+						object.idObject,
+						object.points,
+					);
+					selected.points = object.points.map((p) => ({ ...p }));
+					selected.draw();
+				},
+			);
 			return;
 		}
 
-		this.startDrag(viewport, start, (delta) => {
-			const points = object.points.map((point) => ({
-				x: point.x + delta.x,
-				y: point.y + delta.y,
-			}));
-			object.refreshPath(points, viewport);
-		});
+		store.selectionDragObjectId = object.idObject;
+		this.startDrag(
+			viewport,
+			start,
+			(delta) => {
+				selected.points = selected.points.map((point) => ({
+					x: point.x + delta.x,
+					y: point.y + delta.y,
+				}));
+				selected.draw();
+			},
+			() => {
+				store.selectionDragObjectId = null;
+				object.refreshPath(selected.points, viewport);
+				useEditorClipboardStore().syncLinearGeometryFromScheme(
+					object.idObject,
+					object.points,
+				);
+				selected.points = object.points.map((p) => ({ ...p }));
+				selected.draw();
+			},
+		);
 	}
 
 	async onMouseDownSelectedPointerObject(
 		event: MouseEvent,
 		object: SelectedPointerGraphicObject,
 	): Promise<void> {
+		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
+		const base = object.objectScheme;
+		if (!base) return;
+		const store = useGraphicSchemeStore();
+		event.stopPropagation();
 		const start = this.getWorldPoint(viewport, event);
 		if (!start) return;
 
-		this.startDrag(viewport, start, (delta) => {
-			object.position = {
-				x: object.position.x + delta.x,
-				y: object.position.y + delta.y,
-			};
-			object.draw();
-			if (object.objectScheme) {
-				object.objectScheme.refreshPosition(object.position, viewport);
-			}
-		});
+		store.selectionDragObjectId = object.idObject;
+
+		this.startDrag(
+			viewport,
+			start,
+			(delta) => {
+				object.position = {
+					x: object.position.x + delta.x,
+					y: object.position.y + delta.y,
+				};
+				object.draw();
+			},
+			() => {
+				store.selectionDragObjectId = null;
+				base.refreshPosition(object.position, viewport);
+				useEditorClipboardStore().syncPointerGeometryFromScheme(
+					base.idObject,
+					base.position,
+					base.offsets,
+				);
+				object.position = {
+					x: base.position.x,
+					y: base.position.y,
+				};
+				object.draw();
+			},
+		);
 	}
 
 	async onMouseDownSelectedLinearObject(
@@ -97,77 +191,68 @@ export class DemoTool extends BaseTool {
 		object: SelectedLinearGraphicObject,
 		selectedNodeId?: string,
 	): Promise<void> {
+		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
+		const scheme = object.objectScheme;
+		if (!scheme) return;
+		const store = useGraphicSchemeStore();
 		const start = this.getWorldPoint(viewport, event);
 		if (!start) return;
 
 		if (selectedNodeId) {
 			const nodeIndex = this.getNodeIndex(selectedNodeId);
 			if (nodeIndex < 0 || nodeIndex >= object.points.length) return;
-			this.startDrag(viewport, start, (delta) => {
-				object.points = object.points.map((point, index) =>
-					index === nodeIndex
-						? { x: point.x + delta.x, y: point.y + delta.y }
-						: point,
-				);
-				object.draw();
-				if (object.objectScheme) {
-					object.objectScheme.refreshPath(object.points, viewport);
-				}
-			});
+			store.selectionDragObjectId = object.idObject;
+			event.stopPropagation();
+			this.startDrag(
+				viewport,
+				start,
+				(delta) => {
+					object.points = object.points.map((point, index) =>
+						index === nodeIndex
+							? { x: point.x + delta.x, y: point.y + delta.y }
+							: point,
+					);
+					object.draw();
+				},
+				() => {
+					store.selectionDragObjectId = null;
+					scheme.refreshPath(object.points, viewport);
+					useEditorClipboardStore().syncLinearGeometryFromScheme(
+						scheme.idObject,
+						scheme.points,
+					);
+					object.points = scheme.points.map((p) => ({ ...p }));
+					object.draw();
+				},
+			);
 			return;
 		}
 
-		this.startDrag(viewport, start, (delta) => {
-			object.points = object.points.map((point) => ({
-				x: point.x + delta.x,
-				y: point.y + delta.y,
-			}));
-			object.draw();
-			if (object.objectScheme) {
-				object.objectScheme.refreshPath(object.points, viewport);
-			}
-		});
-	}
-
-	async onContextMenuPointerObject(
-		event: FederatedPointerEvent,
-		pointerObject: PointerGraphicObject | SelectedPointerGraphicObject,
-	): Promise<void> {
-		console.info("Pointer context menu", { id: pointerObject.idObject, event });
-	}
-
-	async onContextMenuLinearObject(
-		event: FederatedPointerEvent,
-		objectId: number,
-	): Promise<void> {
-		console.info("Linear context menu", { objectId, event });
-	}
-
-	async onContextMenuNodeObject(
-		event: FederatedPointerEvent,
-		objectId: number,
-		nodeIndex: number,
-	): Promise<void> {
-		console.info("Node context menu", { objectId, nodeIndex, event });
-	}
-
-	async onContextMenuPane(event: FederatedPointerEvent): Promise<void> {
-		console.info("Pane context menu", { event });
-	}
-
-	async onContextMenuTextualObject(
-		event: FederatedPointerEvent,
-		objectId: number,
-	): Promise<void> {
-		console.info("Textual context menu", { objectId, event });
-	}
-
-	async onContextMenuSelectedArea(
-		event: FederatedPointerEvent,
-	): Promise<void> {
-		console.info("Selected area context menu", { event });
+		store.selectionDragObjectId = object.idObject;
+		event.stopPropagation();
+		this.startDrag(
+			viewport,
+			start,
+			(delta) => {
+				object.points = object.points.map((point) => ({
+					x: point.x + delta.x,
+					y: point.y + delta.y,
+				}));
+				object.draw();
+			},
+			() => {
+				store.selectionDragObjectId = null;
+				scheme.refreshPath(object.points, viewport);
+				useEditorClipboardStore().syncLinearGeometryFromScheme(
+					scheme.idObject,
+					scheme.points,
+				);
+				object.points = scheme.points.map((p) => ({ ...p }));
+				object.draw();
+			},
+		);
 	}
 
 	private getViewport(): Viewport | null {
@@ -180,6 +265,7 @@ export class DemoTool extends BaseTool {
 		viewport: Viewport,
 		start: XY,
 		onDelta: (delta: XY) => void,
+		onEnd?: () => void,
 	): void {
 		this.stopCurrentDrag();
 		const abort = new AbortController();
@@ -189,7 +275,7 @@ export class DemoTool extends BaseTool {
 		let prev = start;
 		document.addEventListener(
 			"mousemove",
-			(event) => {
+			(event: MouseEvent) => {
 				const next = this.getWorldPoint(viewport, event);
 				if (!next) return;
 				const delta = { x: next.x - prev.x, y: next.y - prev.y };
@@ -203,6 +289,7 @@ export class DemoTool extends BaseTool {
 		document.addEventListener(
 			"mouseup",
 			() => {
+				onEnd?.();
 				this.stopCurrentDrag();
 				viewport.plugins.resume("drag");
 			},
@@ -217,20 +304,46 @@ export class DemoTool extends BaseTool {
 		}
 	}
 
-	private getWorldPoint(viewport: Viewport, event: MouseEvent): XY | null {
+	/**
+	 * Всегда переводим в мир схемы из **одних и тех же** экранных координат относительно canvas (как у DOM),
+	 * иначе старт drag (событие Pixi) и move (document) дают разный масштаб/смещение — контур selection «улетает» от курсора.
+	 */
+	private getWorldPoint(
+		viewport: Viewport,
+		event: MouseEvent | FederatedPointerEvent,
+	): XY | null {
 		const store = useGraphicSchemeStore();
-		const appPosition = store.getPositionApp;
-		return viewport.toWorld(
-			event.clientX - appPosition.x,
-			event.clientY - appPosition.y,
-		);
+		const app = store.app;
+		if (!app?.canvas) return null;
+		const r = app.canvas.getBoundingClientRect();
+		const local = this.getCanvasLocalFromPointerEvent(event, r);
+		if (!local) return null;
+		return viewport.toWorld(local.x, local.y);
 	}
 
-	private toMouseLike(event: FederatedPointerEvent): MouseEvent {
-		return {
-			clientX: event.clientX ?? event.globalX ?? 0,
-			clientY: event.clientY ?? event.globalY ?? 0,
-		} as MouseEvent;
+	private getCanvasLocalFromPointerEvent(
+		event: MouseEvent | FederatedPointerEvent,
+		canvasRect: DOMRect,
+	): XY | null {
+		const fromDom = (clientX: number, clientY: number) => ({
+			x: clientX - canvasRect.left,
+			y: clientY - canvasRect.top,
+		});
+		if ("nativeEvent" in event && event.nativeEvent) {
+			const n = event.nativeEvent as MouseEvent | PointerEvent;
+			if (typeof n.clientX === "number" && typeof n.clientY === "number") {
+				return fromDom(n.clientX, n.clientY);
+			}
+		}
+		const me = event as MouseEvent;
+		if (typeof me.clientX === "number" && typeof me.clientY === "number") {
+			return fromDom(me.clientX, me.clientY);
+		}
+		const fe = event as FederatedPointerEvent;
+		if (fe.client && typeof fe.client.x === "number") {
+			return { x: fe.client.x, y: fe.client.y };
+		}
+		return null;
 	}
 
 	private getNodeIndex(selectedNodeId: string): number {

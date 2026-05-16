@@ -1,10 +1,10 @@
 import {
 	type ObjectInfo,
 	type XYPosition,
-	adaptToGrid,
 	GraphicObjectScheme,
 	Offsets,
 } from "../";
+import { markSchemaViewportChild } from "../../../lib/schema-viewport-mark";
 import {
 	Bounds,
 	Container,
@@ -19,9 +19,37 @@ import {
 import type { Viewport } from "pixi-viewport";
 import type { ITool } from "../../tools";
 
+/** Локальный размер иконки «поставщик» (квадрат + стрелка), совпадает с polynom в дескрипторе. */
+export const PRODUCER_POINTER_SIZE = 48;
+
+/** Длина стороны внешнего равностороннего треугольника «потребитель» (основание слева). */
+export const CONSUMER_POINTER_SIDE = 56;
+
+/** Доля стороны внутреннего △ от внешнего (меньше — уже «чёрное» тело). */
+const CONSUMER_INNER_SIDE_SCALE = 0.46;
+/** Скругление вершин внутреннего △ (радиус roundPoly, пиксели локальных координат). */
+const CONSUMER_INNER_CORNER_RADIUS = 5;
+
+/** Вершины внешнего △ вправо: основание (0,0)–(0,side), вершина (w, side/2), w = side·√3/2. */
+export function getConsumerOuterPolynom(side: number): XYPosition[] {
+	const w = (side * Math.sqrt(3)) / 2;
+	return [
+		{ x: 0, y: 0 },
+		{ x: 0, y: side },
+		{ x: w, y: side / 2 },
+	];
+}
+
+export function getConsumerOuterTriangleFlat(side: number): number[] {
+	const w = (side * Math.sqrt(3)) / 2;
+	return [0, 0, 0, side, w, side / 2];
+}
+
 export class PointerGraphicObject extends GraphicObjectScheme {
     // world position
 	position: XYPosition;
+	/** Например `valve`, `producer`, `consumer` — влияет на drawElement. */
+	featureObjectType: string;
 	rotationAngle: number;
 	flipHorizontal: boolean;
 	flipVertical: boolean;
@@ -29,12 +57,14 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 	fillColor: string;
 	strokeColor: string;
 	strokeWidth: number;
+	selectionStrokeColor: string;
     // local position
 	polynom: XYPosition[];
 	transformBounds: BoundsData;
 
 	constructor(info: ObjectInfo) {
 		super(info);
+		this.featureObjectType = info.featureObjectType ?? "";
 		this.rotationAngle = info.rotateAngle ?? 0;
 		this.flipHorizontal = info.flipHorizontal ?? false;
 		this.flipVertical = info.flipVertical ?? false;
@@ -46,6 +76,7 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 		this.strokeColor = info.strokeColor ?? "transparent";
 		this.polynom = info.polynom ?? [];
 		this.strokeWidth = info.strokeWidth ?? 1;
+		this.selectionStrokeColor = info.selectionStrokeColor ?? "#fca5a5";
 		this.transformBounds = new Bounds(); // TODO: Возможно нужнео брать из description
 	}
 
@@ -59,7 +90,7 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 		//create container
 		const container = new Container();
 		container.label = this.idObject.toString();
-		container.interactive = true;
+		container.eventMode = "static";
 		container.origin.set(this.offsets.left, this.offsets.top);
 		container.rotation = (this.rotationAngle * Math.PI) / 180;
 		container.position.set(this.position.x, this.position.y);
@@ -79,6 +110,7 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 		//create graphics (фигурка объекта)
 		const graphics = new Graphics();
 		graphics.label = "graphics";
+		graphics.eventMode = "static";
 		this.drawElement(graphics.context);
 
 		const scaleX = this.flipHorizontal ? -1 : 1;
@@ -88,6 +120,7 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 
         //add graphics in container
 		container.addChild(graphics);
+		markSchemaViewportChild(container);
 
 		// подпись объекта (label) строго ниже объекта
 		viewport.addChild(container);
@@ -100,13 +133,13 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 	 * @param viewport - The viewport of the object.
 	 */
 	refreshPosition(position: XYPosition, viewport: Viewport) {
-		this.position = adaptToGrid(position);
+		this.position = { x: position.x, y: position.y };
 		const container = viewport.getChildByLabel(
 			this.idObject.toString(),
 		);
 		if (container) {
-			container.position.x = position.x;
-			container.position.y = position.y;
+			container.position.x = this.position.x;
+			container.position.y = this.position.y;
 			viewport._onUpdate();
 			this.transformBounds = this.getBounds(viewport);
 		}
@@ -221,6 +254,17 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 	}
 
 	async drawElement(context: GraphicsContext): Promise<void> {
+		if (
+			this.featureObjectType === "producer" ||
+			this.featureObjectType === "supplier"
+		) {
+			this.drawProducerIcon(context);
+			return;
+		}
+		if (this.featureObjectType === "consumer") {
+			this.drawConsumerIcon(context);
+			return;
+		}
 		const points = this.polynom.map((p) => new Point(p.x, p.y));
 		context.poly(points)
 			.fill({ color: this.fillColor })
@@ -228,6 +272,55 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 				width: this.strokeWidth,
 				color: this.strokeColor,
 			});
+	}
+
+	/** Серый квадрат, чёрная обводка, чёрная стрелка вправо (как на схеме поставщика). */
+	private drawProducerIcon(context: GraphicsContext): void {
+		const s = PRODUCER_POINTER_SIZE;
+		context
+			.poly([0, 0, s, 0, s, s, 0, s])
+			.fill({ color: this.fillColor })
+			.stroke({
+				width: Math.max(3, this.strokeWidth + 2),
+				color: this.strokeColor,
+			});
+		// стрелка вправо: прямоугольник + треугольник
+		const shaft = [10, 20, 28, 20, 28, 28, 10, 28];
+		const head = [28, 16, 40, 24, 28, 32];
+		context.poly(shaft).fill({ color: 0x000000 });
+		context.poly(head).fill({ color: 0x000000 });
+	}
+
+	/**
+	 * Равносторонний треугольник вправо: серая заливка, чёрная обводка; внутри — меньший чёрный △.
+	 * Геометрия внешнего контура совпадает с `polynom` из дескриптора (`getConsumerOuterPolynom`).
+	 */
+	private drawConsumerIcon(context: GraphicsContext): void {
+		const side = CONSUMER_POINTER_SIDE;
+		const outer = getConsumerOuterTriangleFlat(side);
+		const w = (side * Math.sqrt(3)) / 2;
+		const cx = w / 3;
+		const cy = side / 2;
+		const innerSide = CONSUMER_INNER_SIDE_SCALE * side;
+		const innerCircumR = innerSide / Math.sqrt(3);
+		context
+			.poly(outer)
+			.fill({ color: this.fillColor })
+			.stroke({
+				width: Math.max(2, this.strokeWidth + 1),
+				color: this.strokeColor,
+			});
+		// Внутренний △ меньше, с мягкими углами (Pixi roundPoly + rotation π/2 → вершина вправо).
+		context
+			.roundPoly(
+				cx,
+				cy,
+				innerCircumR,
+				3,
+				CONSUMER_INNER_CORNER_RADIUS,
+				Math.PI / 2,
+			)
+			.fill({ color: 0x000000 });
 	}
 
 	redraw(viewport: Viewport) {
@@ -243,7 +336,34 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 	}
 
 	drawSelectedElement(position: XYPosition): GraphicsContext {
-		return new GraphicsContext();
+		const context = new GraphicsContext();
+		if (this.polynom.length < 3) {
+			return context;
+		}
+		const angle = (this.rotationAngle * Math.PI) / 180;
+		const scaleX = this.flipHorizontal ? -1 : 1;
+		const scaleY = this.flipVertical ? -1 : 1;
+		const points = this.polynom.map((p) => new Point(p.x, p.y));
+		const matrix = new Matrix()
+			.translate(-this.offsets.left, -this.offsets.top)
+			.scale(scaleX, scaleY)
+			.rotate(angle)
+			.translate(
+				position.x + this.offsets.left,
+				position.y + this.offsets.top,
+			);
+		const tPoly = points.flatMap((p) => {
+			const tp = matrix.apply(p);
+			return [tp.x, tp.y];
+		});
+		context
+			.poly(tPoly)
+			.fill({ color: 0xffffff, alpha: 0 })
+			.stroke({
+				width: Math.max(2, this.strokeWidth),
+				color: this.selectionStrokeColor,
+			});
+		return context;
 	}
 
 	getProcessingHitArea() {
@@ -261,7 +381,7 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 	}
 
 	getHitAreaPoints(): Point[] {
-		return [];
+		return this.polynom.map((p) => new Point(p.x, p.y));
 	}
 	getBounds(viewport: Viewport): BoundsData {
 		const points = this.getHitAreaPoints();
@@ -278,6 +398,22 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 		};
 	}
 	transformHitArea(position: XYPosition): IHitArea | undefined {
-		return;
+		if (this.polynom.length < 3) {
+			return undefined;
+		}
+		const angle = (this.rotationAngle * Math.PI) / 180;
+		const scaleX = this.flipHorizontal ? -1 : 1;
+		const scaleY = this.flipVertical ? -1 : 1;
+		const points = this.polynom.map((p) => new Point(p.x, p.y));
+		const matrix = new Matrix()
+			.translate(-this.offsets.left, -this.offsets.top)
+			.scale(scaleX, scaleY)
+			.rotate(angle)
+			.translate(
+				position.x + this.offsets.left,
+				position.y + this.offsets.top,
+			);
+		const transformed = points.map((p) => matrix.apply(p));
+		return new Polygon(transformed.flatMap((p) => [p.x, p.y]));
 	}
 }
