@@ -5,7 +5,8 @@
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "bench:render-schema": "node scripts/benchmark-render-schema.mjs"
   },
   "peerDependencies": {
     "pinia": "^3.0.0",

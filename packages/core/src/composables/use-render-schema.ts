@@ -1,17 +1,33 @@
 import { Viewport } from "pixi-viewport";
 import { type Application, type Container } from "pixi.js";
 import {
-	createGraphicObjectFromDto,
 	getDescriptionByType,
 	isLinearGraphicObjectDto,
 	isPointerGraphicObjectDto,
 	useGraphicSchemeStore,
 } from "../model";
 import { calculatingBoundsSchema } from "../lib";
+import { syncMonitorsInObjectList } from "../lib/monitor-object";
+import {
+	createSchemaGridGraphics,
+	SCHEMA_GRID_LABEL,
+} from "../lib/schema-grid";
 import {
 	isSchemaViewportChild,
 	markSchemaViewportChild,
 } from "../lib/schema-viewport-mark";
+import {
+	buildStructuralKey,
+	clearSchemaViewportLayers,
+	createGraphicModelsFromDtos,
+	collectViewportPatchIds,
+	patchLinearOnViewport,
+	patchPointerOnViewport,
+	rebuildFingerprintMap,
+	removeViewportObjectById,
+	syncGraphicModelsIncremental,
+	type GraphicModelMaps,
+} from "../lib/schema-render-sync";
 import { GraphicObjectDto, ObjectDescription } from "../api";
 import { Ref, watch } from "vue";
 import {
@@ -21,64 +37,185 @@ import {
 	SelectedLinearGraphicObject,
 } from "../model";
 import { ITool } from "../api/itool";
+import { useEditorClipboardStore } from "../model/stores/editor-clipboard.store";
 
 export function useRenderSchema(
 	objects: Ref<GraphicObjectDto<any>[]>,
 	descriptions: Ref<ObjectDescription[]>,
 ) {
 	let viewport: Viewport;
+	let modelMaps: GraphicModelMaps = {
+		pointers: new Map(),
+		linears: new Map(),
+	};
+	let lastStructuralKey = "";
+	let lastDescriptionCount = 0;
+	let objectFingerprints = new Map<number, string>();
+	let syncRafId: number | null = null;
+
 	const graphicSchemaStore = useGraphicSchemeStore();
 
-	function clearSchemaViewportLayers(vp: Viewport) {
-		for (const child of [...vp.children]) {
-			if (isSchemaViewportChild(child)) {
-				vp.removeChild(child);
-				child.destroy({ children: true });
+	function applyModelsToStore(maps: GraphicModelMaps) {
+		graphicSchemaStore.scheme.layerGraphicObject.pointer =
+			[...maps.pointers.values()] as unknown as PointerGraphicObject[];
+		graphicSchemaStore.scheme.layerGraphicObject.linear =
+			[...maps.linears.values()] as unknown as LinearGraphicObject[];
+	}
+
+	function syncSchemaGrid(vp: Viewport) {
+		const existing = vp.getChildByLabel(SCHEMA_GRID_LABEL);
+		if (!graphicSchemaStore.gridVisible) {
+			if (existing) {
+				vp.removeChild(existing);
+				existing.destroy();
 			}
+			return;
 		}
+		if (existing) return;
+		const grid = createSchemaGridGraphics({
+			step: graphicSchemaStore.gridStep,
+			color: graphicSchemaStore.gridLineColor,
+			alpha: graphicSchemaStore.gridLineAlpha,
+			dotSize: graphicSchemaStore.gridDotSize,
+		});
+		vp.addChildAt(grid, 0);
 	}
 
 	function redrawSchemaOnViewport(vp: Viewport) {
 		const tool = graphicSchemaStore.tool;
 		clearSchemaViewportLayers(vp);
-		drawGraphicLinear(vp, tool);
-		drawGraphicPointer(vp, tool);
+		drawGraphicObjectsInZOrder(vp, tool);
 		buildSelectionLayers(vp);
 	}
 
-	watch(
-		() => objects.value,
-		() => {
-			const pointerObjs = objects.value
-				.filter(isPointerGraphicObjectDto)
-				.map((object) =>
-					createGraphicObjectFromDto(
-						object,
-						getDescriptionByType(
-							descriptions.value,
-							object.featureObjectType,
-						),
-					),
-				);
-			const linearObjs = objects.value
-				.filter(isLinearGraphicObjectDto)
-				.map((object) =>
-					createGraphicObjectFromDto(
-						object,
-						getDescriptionByType(
-							descriptions.value,
-							object.featureObjectType,
-						),
-					),
-				);
-			graphicSchemaStore.scheme.layerGraphicObject.pointer =
-				pointerObjs as unknown as PointerGraphicObject[];
-			graphicSchemaStore.scheme.layerGraphicObject.linear =
-				linearObjs as unknown as LinearGraphicObject[];
+	function patchViewportObjects(vp: Viewport, patchIds: Set<number>) {
+		const tool = graphicSchemaStore.tool;
+		const dtoById = new Map(objects.value.map((dto) => [dto.id, dto]));
+
+		for (const id of patchIds) {
+			const dto = dtoById.get(id);
+			if (!dto) {
+				removeViewportObjectById(vp, id);
+				continue;
+			}
+			if (isPointerGraphicObjectDto(dto)) {
+				const obj = modelMaps.pointers.get(id);
+				if (obj) {
+					patchPointerOnViewport(vp, obj, dto, tool);
+				}
+			} else if (isLinearGraphicObjectDto(dto)) {
+				const obj = modelMaps.linears.get(id);
+				if (obj) {
+					patchLinearOnViewport(vp, obj, dto, tool);
+				}
+			}
+		}
+	}
+
+	function runObjectsSync() {
+		syncMonitorsInObjectList(objects.value);
+
+		const structuralKey = buildStructuralKey(objects.value);
+		const descriptionsChanged =
+			descriptions.value.length !== lastDescriptionCount;
+		const structuralChanged =
+			structuralKey !== lastStructuralKey || descriptionsChanged;
+
+		if (structuralChanged) {
+			const built = createGraphicModelsFromDtos(
+				objects.value,
+				descriptions.value,
+			);
+			modelMaps = built.maps;
+			applyModelsToStore(modelMaps);
+			lastStructuralKey = structuralKey;
+			lastDescriptionCount = descriptions.value.length;
+			objectFingerprints = rebuildFingerprintMap(objects.value);
 
 			if (viewport) {
 				redrawSchemaOnViewport(viewport);
 			}
+			return;
+		}
+
+		const patchIds = collectViewportPatchIds(
+			objects.value,
+			objectFingerprints,
+		);
+		if (patchIds.size === 0) {
+			return;
+		}
+
+		syncGraphicModelsIncremental(
+			objects.value,
+			descriptions.value,
+			modelMaps,
+		);
+		applyModelsToStore(modelMaps);
+		objectFingerprints = rebuildFingerprintMap(objects.value);
+
+		if (!viewport) {
+			return;
+		}
+
+		patchViewportObjects(viewport, patchIds);
+		const selected = graphicSchemaStore.selectedObjectIds;
+		const selectionNeedsRebuild =
+			selected.length > 0 &&
+			selected.some((id) => patchIds.has(id));
+		if (selectionNeedsRebuild) {
+			buildSelectionLayers(viewport);
+		} else {
+			applyPinnedSelection(viewport);
+		}
+	}
+
+	function scheduleObjectsSync() {
+		if (typeof requestAnimationFrame !== "function") {
+			runObjectsSync();
+			return;
+		}
+		if (syncRafId != null) {
+			return;
+		}
+		syncRafId = requestAnimationFrame(() => {
+			syncRafId = null;
+			runObjectsSync();
+		});
+	}
+
+	watch(
+		() =>
+			[
+				graphicSchemaStore.gridVisible,
+				graphicSchemaStore.gridStep,
+				graphicSchemaStore.gridLineColor,
+				graphicSchemaStore.gridLineAlpha,
+				graphicSchemaStore.gridDotSize,
+			] as const,
+		() => {
+			if (!viewport) return;
+			const existing = viewport.getChildByLabel(SCHEMA_GRID_LABEL);
+			if (existing) {
+				viewport.removeChild(existing);
+				existing.destroy();
+			}
+			syncSchemaGrid(viewport);
+		},
+	);
+
+	watch(
+		() => graphicSchemaStore.selectedObjectIds.slice(),
+		() => {
+			if (!viewport) return;
+			applyPinnedSelection(viewport);
+		},
+	);
+
+	watch(
+		() => objects.value,
+		() => {
+			scheduleObjectsSync();
 		},
 		{
 			immediate: true,
@@ -86,23 +223,41 @@ export function useRenderSchema(
 		},
 	);
 
+	watch(
+		() => descriptions.value,
+		() => {
+			scheduleObjectsSync();
+		},
+		{ deep: true },
+	);
+
 	function renderSchema(app: Application): Viewport {
 		viewport = initViewport(app);
 
 		const tool = graphicSchemaStore.tool;
-		// fitFullSchema();
-
-		drawGraphicLinear(viewport, tool);
-		drawGraphicPointer(viewport, tool);
+		drawGraphicObjectsInZOrder(viewport, tool);
 		buildSelectionLayers(viewport);
 
 		return viewport;
 	}
 
-	/** Слой selection: контур поверх базового объекта, hover и отрисовка в DemoTool. */
+	function applyPinnedSelection(vp: Viewport) {
+		const pinned = new Set(graphicSchemaStore.selectedObjectIds);
+		for (const s of graphicSchemaStore.selectedPointerObjs) {
+			const on = pinned.has(s.idObject);
+			s.graphics.visible = on;
+			s.graphics.eventMode = on ? "static" : "none";
+		}
+		for (const s of graphicSchemaStore.selectedLinearObjs) {
+			s.setOutlineVisible(pinned.has(s.idObject));
+		}
+	}
+
 	function buildSelectionLayers(viewport: Viewport) {
 		const pointerSelected: SelectedPointerGraphicObject[] = [];
 		const linearSelected: SelectedLinearGraphicObject[] = [];
+		const pinned = () =>
+			new Set(graphicSchemaStore.selectedObjectIds);
 
 		for (const o of graphicSchemaStore.pointerObjs) {
 			const selected = new SelectedPointerGraphicObject({
@@ -116,10 +271,10 @@ export function useRenderSchema(
 				offsets: o.offsets,
 			});
 			selected.setObjectScheme(o);
-			selected.graphics.visible = false;
+			const isPinned = pinned().has(o.idObject);
+			selected.graphics.visible = isPinned;
 			selected.graphics.zIndex = 15;
-			/** Пока контур скрыт — не участвуем в hit-test, иначе блокируем контейнер объекта снизу и hover не сработает. */
-			selected.graphics.eventMode = "none";
+			selected.graphics.eventMode = isPinned ? "static" : "none";
 			viewport.addChild(selected.draw());
 
 			const showPointerSelection = () => {
@@ -132,6 +287,7 @@ export function useRenderSchema(
 				) {
 					return;
 				}
+				if (pinned().has(o.idObject)) return;
 				selected.graphics.visible = false;
 				selected.graphics.eventMode = "none";
 			};
@@ -142,7 +298,6 @@ export function useRenderSchema(
 			if (container) {
 				container.eventMode = "static";
 				container.onpointerenter = showPointerSelection;
-				/** Контур по hover вешался только на контейнер; при пустом/битом hitArea события шли с фигуры — дублируем на graphics. */
 				const figure = container.getChildByLabel("graphics");
 				if (figure) {
 					figure.eventMode = "static";
@@ -165,7 +320,7 @@ export function useRenderSchema(
 				points: o.points.map((p) => ({ ...p })),
 			});
 			selected.setObjectScheme(o);
-			selected.setOutlineVisible(false);
+			selected.setOutlineVisible(pinned().has(o.idObject));
 			viewport.addChild(...selected.draw());
 
 			const baseShadow = viewport.getChildByLabel(
@@ -188,6 +343,7 @@ export function useRenderSchema(
 				) {
 					return;
 				}
+				if (pinned().has(o.idObject)) return;
 				selected.setOutlineVisible(false);
 			};
 
@@ -214,6 +370,7 @@ export function useRenderSchema(
 			pointerSelected as unknown as typeof graphicSchemaStore.scheme.layerSelectedGraphicObject.pointer;
 		graphicSchemaStore.scheme.layerSelectedGraphicObject.linear =
 			linearSelected as unknown as typeof graphicSchemaStore.scheme.layerSelectedGraphicObject.linear;
+		applyPinnedSelection(viewport);
 	}
 
 	function initViewport(app: Application) {
@@ -225,16 +382,12 @@ export function useRenderSchema(
 			screenWidth: app.canvas.width,
 			allowPreserveDragOutside: true,
 		});
-		// viewport.cullable = true;
-		// viewport.cullableChildren = true;
 		app.stage.addChild(viewport);
 		viewport.sortableChildren = true;
 		viewport.drag({ wheel: false }).pinch();
-		// Keep page scroll for regular wheel over canvas, but handle pinch-zoom inside editor.
 		app.canvas.addEventListener(
 			"wheel",
 			(event: WheelEvent) => {
-				// Trackpad pinch is emitted as ctrl + wheel in browsers.
 				if (!event.ctrlKey) {
 					return;
 				}
@@ -247,26 +400,42 @@ export function useRenderSchema(
 			{ passive: false },
 		);
 		viewport.label = "viewport";
-		viewport.addEventListener("click", () => {
+		syncSchemaGrid(viewport);
+		viewport.addEventListener("click", (event) => {
+			const btn =
+				event.button ??
+				(event as { nativeEvent?: MouseEvent }).nativeEvent?.button;
+			if (btn !== undefined && btn !== 0) return;
+			if (event.target !== viewport) return;
+			useEditorClipboardStore().closeMenu();
+			const native = (event as { nativeEvent?: MouseEvent }).nativeEvent;
+			if (
+				native &&
+				typeof native.clientX === "number" &&
+				typeof native.clientY === "number"
+			) {
+				useEditorClipboardStore().setPasteTargetFromClient(
+					native.clientX,
+					native.clientY,
+				);
+			}
 			if (!graphicSchemaStore.isDragPan) {
+				graphicSchemaStore.clearSelectedObjects();
 			}
 			graphicSchemaStore.isDragPan = false;
 		});
-		viewport.addEventListener("drag-start", (event) => {
+		viewport.addEventListener("drag-start", () => {
 			graphicSchemaStore.isDragPan = true;
 		});
 
 		viewport.onrightclick = (event) => {
+			if (event.target !== viewport) return;
 			graphicSchemaStore.tool.onContextMenuPane(event);
 		};
 
 		return viewport;
 	}
 
-	/**
-	 * Подгоняет схему под размеры экрана
-	 * @param paddingPercent - процент padding от размера экрана
-	 */
 	function fitFullSchema(paddingPercent = 5) {
 		const bounds = calculatingBoundsSchema(
 			graphicSchemaStore.pointerObjs,
@@ -275,11 +444,10 @@ export function useRenderSchema(
 		const scaleX = viewport.screenWidth / bounds.width;
 		const scaleY = viewport.screenHeight / bounds.height;
 
-		// Берём минимальный, чтобы точно влезло
 		const scale = Math.min(scaleX, scaleY);
 		const paddingScale = scale - (paddingPercent * scale) / 100;
 
-		viewport.setZoom(paddingScale, true); // true = центрировать
+		viewport.setZoom(paddingScale, true);
 		viewport.moveCenter(
 			bounds.x + bounds.width / 2,
 			bounds.y + bounds.height / 2,
@@ -287,16 +455,18 @@ export function useRenderSchema(
 		return;
 	}
 
-	function drawGraphicPointer(viewport: Viewport, tool: ITool) {
-		graphicSchemaStore.pointerObjs.forEach((object) => {
-			object.draw(viewport, tool);
-		});
-	}
-
-	function drawGraphicLinear(viewport: Viewport, tool: ITool) {
-		graphicSchemaStore.linearObjs.forEach((object) => {
-			object.draw(viewport, tool);
-		});
+	function drawGraphicObjectsInZOrder(vp: Viewport, tool: ITool) {
+		const pointers = graphicSchemaStore.pointerObjs;
+		const linears = graphicSchemaStore.linearObjs;
+		for (const dto of objects.value) {
+			if (isPointerGraphicObjectDto(dto)) {
+				const o = pointers.find((x) => x.idObject === dto.id);
+				if (o) o.draw(vp, tool);
+			} else if (isLinearGraphicObjectDto(dto)) {
+				const o = linears.find((x) => x.idObject === dto.id);
+				if (o) o.draw(vp, tool);
+			}
+		}
 	}
 
 	return {
