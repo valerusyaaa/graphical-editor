@@ -1,0 +1,408 @@
+openapi: 3.0.3
+info:
+  title: charts-for-diplom API (черновик)
+  description: |
+    Черновой контракт монолитного бэкенда (C# + SQLite) под SPA-пример Nuxt/Vue.
+    Фронт сейчас не вызывает API — спецификация задаёт целевую форму JSON для замены
+    клиентской генерации данных (`Profile` / `Trend` / проводник).
+  version: 0.1.0
+
+servers:
+  - url: https://api.example.local
+    description: Прод (заглушка)
+  - url: http://localhost:5000
+    description: Локальная разработка
+
+tags:
+  - name: objects
+    description: Объекты проводника (трубы / краны и т.п.)
+  - name: profiles
+    description: Профильные срезы по расстоянию
+  - name: trends
+    description: Временные ряды (тренды)
+
+paths:
+  /objects:
+    get:
+      tags: [objects]
+      summary: Список объектов проводника
+      operationId: listObjects
+      responses:
+        "200":
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      tags: [objects]
+      summary: Создать объект (опционально для диплома)
+      operationId: createObject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateObjectRequest"
+      responses:
+        "201":
+          description: Создано
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExplorerObject"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /objects/{objectId}:
+    parameters:
+      - $ref: "#/components/parameters/ObjectId"
+    get:
+      tags: [objects]
+      summary: Получить объект по id
+      operationId: getObject
+      responses:
+        "200":
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExplorerObject"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags: [objects]
+      summary: Удалить объект (опционально)
+      operationId: deleteObject
+      responses:
+        "204":
+          description: Удалено
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /objects/{objectId}/profile:
+    parameters:
+      - $ref: "#/components/parameters/ObjectId"
+    get:
+      tags: [profiles]
+      summary: Данные профиля для объекта
+      description: |
+        Ряды точек для оси X «расстояние» и одной или нескольких физических величин на Y.
+        Значения на фронте отображаются с точностью до 3 знаков после запятой.
+      operationId: getProfile
+      parameters:
+        - name: at
+          in: query
+          description: Момент среза (ISO 8601). Если не задан — актуальное время на сервере.
+          required: false
+          schema:
+            type: string
+            format: date-time
+            example: "2026-04-19T12:00:00Z"
+      responses:
+        "200":
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /objects/{objectId}/trend:
+    parameters:
+      - $ref: "#/components/parameters/ObjectId"
+    get:
+      tags: [trends]
+      summary: Данные тренда для объекта
+      description: |
+        Временные ряды; точки — пара (момент времени, значение).
+        Диапазон обязателен (как на фронте при `startTime` / `endTime`).
+      operationId: getTrend
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: Начало интервала (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          description: Конец интервала (ISO 8601)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Успех
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrendResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+components:
+  parameters:
+    ObjectId:
+      name: objectId
+      in: path
+      required: true
+      description: Идентификатор объекта проводника
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+        example: 1
+
+  responses:
+    BadRequest:
+      description: Некорректные параметры
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Внутренняя ошибка сервера
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: NOT_FOUND
+        message:
+          type: string
+          example: Объект не найден
+        details:
+          type: object
+          additionalProperties: true
+
+    ExplorerObject:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: "Кран №1"
+
+    ObjectListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExplorerObject"
+
+    CreateObjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Кран №6"
+
+    Quantity:
+      type: object
+      required: [name, displayName]
+      properties:
+        name:
+          type: string
+          description: Стабильный ключ оси / величины (например Pressure, Temperature)
+          example: Pressure
+        displayName:
+          type: string
+          example: Давление
+
+    Unit:
+      type: object
+      required: [name, displayName, quantity]
+      properties:
+        name:
+          type: string
+          example: pressure
+        displayName:
+          type: string
+          example: bar
+        quantity:
+          $ref: "#/components/schemas/Quantity"
+
+    ProfilePoint:
+      type: object
+      required: [distanceKm, value]
+      description: Одна точка профиля (ось X — расстояние, км)
+      properties:
+        distanceKm:
+          type: number
+          format: double
+          example: 0.5
+        value:
+          type: number
+          format: double
+          description: Значение величины (до 3 знаков после запятой на клиенте)
+          example: 101.234
+
+    ProfileSeries:
+      type: object
+      required: [title, unit, points]
+      properties:
+        title:
+          type: string
+          example: Давление
+        color:
+          type: string
+          nullable: true
+          description: CSS/HEX цвет линии
+          example: "#5470c6"
+        digits:
+          type: integer
+          minimum: 0
+          maximum: 6
+          default: 3
+          description: Рекомендуемая точность отображения
+        unit:
+          $ref: "#/components/schemas/Unit"
+        xAxisUnit:
+          $ref: "#/components/schemas/Unit"
+          description: Единица оси X (расстояние)
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfilePoint"
+        style:
+          $ref: "#/components/schemas/SeriesStyle"
+          description: Опционально; если не задано — дефолты на фронте
+
+    ProfileResponse:
+      type: object
+      required: [pipeId, pipeName, time, series]
+      properties:
+        pipeId:
+          type: integer
+          format: int64
+        pipeName:
+          type: string
+          example: "Кран №1"
+        time:
+          type: string
+          format: date-time
+          description: Момент среза профиля
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProfileSeries"
+
+    TrendPoint:
+      type: object
+      required: [time, value]
+      properties:
+        time:
+          type: string
+          format: date-time
+        value:
+          type: number
+          format: double
+
+    TrendSeries:
+      type: object
+      required: [title, group, unit, points]
+      properties:
+        title:
+          type: string
+          description: Короткое имя серии (на фронте может показываться как [group] title)
+          example: Давление
+        group:
+          type: string
+          example: "Группа 1"
+        color:
+          type: string
+          nullable: true
+          example: "#5470c6"
+        digits:
+          type: integer
+          minimum: 0
+          maximum: 6
+          default: 3
+        unit:
+          $ref: "#/components/schemas/Unit"
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrendPoint"
+        style:
+          $ref: "#/components/schemas/SeriesStyle"
+
+    SeriesStyle:
+      type: object
+      description: Настройки линии (как в панели редактирования на фронте)
+      properties:
+        lineWidth:
+          type: number
+          format: float
+          minimum: 1
+          maximum: 10
+          default: 2
+        dash:
+          type: string
+          enum: [solid, dashed, dotted]
+          default: solid
+        step:
+          type: boolean
+          default: false
+        area:
+          type: boolean
+          default: false
+
+    TrendResponse:
+      type: object
+      required: [objectId, from, to, series]
+      properties:
+        objectId:
+          type: integer
+          format: int64
+        from:
+          type: string
+          format: date-time
+        to:
+          type: string
+          format: date-time
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrendSeries"

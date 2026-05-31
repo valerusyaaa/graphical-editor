@@ -1,0 +1,625 @@
+{
+    "configVersion": 1701,
+    "currentZoom": 6,
+    "maxLineID": 12,
+    "maxObjectID": 26,
+    "lines": [
+        {
+            "endID": 13,
+            "endJunction": 0,
+            "id": 12,
+            "pipeID": 15,
+            "points": [
+                {
+                    "x": 112,
+                    "y": 256
+                },
+                {
+                    "x": 528,
+                    "y": 256
+                }
+            ],
+            "startID": 12,
+            "startJunction": 0
+        }
+    ],
+    "objects": [
+        {
+            "class": "Schema",
+            "id": 0,
+            "parentID": 0,
+            "properties": {
+                "Design": {
+                    "bgcolor": {
+                        "value": "#ffffff"
+                    },
+                    "Размеры": {
+                        "sceneHeight": {
+                            "value": "625"
+                        },
+                        "sceneLeft": {
+                            "value": "0"
+                        },
+                        "sceneTop": {
+                            "value": "0"
+                        },
+                        "sceneWidth": {
+                            "value": "625"
+                        }
+                    }
+                },
+                "Данные регистрации": {
+                    "id": {
+                        "value": "ГТС"
+                    },
+                    "text": {
+                        "value": ""
+                    },
+                    "Описание схемы": {
+                        "value": ""
+                    }
+                }
+            },
+            "scrollX": 114,
+            "scrollY": 102,
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "zValueMax": 1.5000000000000002,
+            "zValueMin": 0
+        },
+        {
+            "class": "Producer",
+            "id": 12,
+            "parentID": 0,
+            "properties": {
+                "Design": {
+                    "Размеры": {
+                        "sceneHeight": {
+                            "value": "625"
+                        },
+                        "sceneLeft": {
+                            "value": "0"
+                        },
+                        "sceneTop": {
+                            "value": "0"
+                        },
+                        "sceneWidth": {
+                            "value": "625"
+                        }
+                    },
+                    "Фиксировать на схеме": {
+                        "value": "False"
+                    }
+                },
+                "Inner": {
+                    "Направление": {
+                        "value": "0"
+                    }
+                },
+                "P": {
+                    "value": "50"
+                },
+                "Q": {
+                    "value": "0"
+                },
+                "T": {
+                    "value": "30"
+                },
+                "Results": {
+                    "Азот::Result": {
+                        "value": "0"
+                    },
+                    "Аргон::Result": {
+                        "value": "0"
+                    },
+                    "Вода::Result": {
+                        "value": "0"
+                    },
+                    "Водород::Result": {
+                        "value": "0"
+                    },
+                    "Кислород::Result": {
+                        "value": "0"
+                    },
+                    "Гелий::Result": {
+                        "value": "0"
+                    },
+                    "Монооксид углерода::Result": {
+                        "value": "0"
+                    },
+                    "Диоксид углерода::Result": {
+                        "value": "0"
+                    },
+                    "Сероводород::Result": {
+                        "value": "0"
+                    },
+                    "Метан::Result": {
+                        "value": "0"
+                    },
+                    "Пропан::Result": {
+                        "value": "0"
+                    },
+                    "Этан::Result": {
+                        "value": "0"
+                    },
+                    "и-Бутан::Result": {
+                        "value": "0"
+                    },
+                    "и-Пентан::Result": {
+                        "value": "0"
+                    },
+                    "н-Бутан::Result": {
+                        "value": "0"
+                    },
+                    "н-Пентан::Result": {
+                        "value": "0"
+                    },
+                    "н-Гексан::Result": {
+                        "value": "0"
+                    },
+                    "н-Гептан::Result": {
+                        "value": "0"
+                    },
+                    "н-Октан::Result": {
+                        "value": "0"
+                    },
+                    "н-Нонан::Result": {
+                        "value": "0"
+                    },
+                    "н-Декан::Result": {
+                        "value": "0"
+                    },
+                    "P::Result": {
+                        "value": "0"
+                    },
+                    "Q::Result": {
+                        "value": "0"
+                    },
+                    "T::Result": {
+                        "value": "0"
+                    }
+                },
+                "Данные регистрации": {
+                    "id": {
+                        "value": "Поставщик 12"
+                    },
+                    "text": {
+                        "value": ""
+                    },
+                    "Год ввода": {
+                        "value": ""
+                    },
+                    "Состояние по умолчанию": {
+                        "value": "0"
+                    }
+                },
+                "Компонентный состав газa": {
+                    "Азот": {
+                        "value": "0"
+                    },
+                    "Аргон": {
+                        "value": "0"
+                    },
+                    "Вода": {
+                        "value": "0"
+                    },
+                    "Водород": {
+                        "value": "0"
+                    },
+                    "Кислород": {
+                        "value": "0"
+                    },
+                    "Гелий": {
+                        "value": "0"
+                    },
+                    "Монооксид углерода": {
+                        "value": "0"
+                    },
+                    "Диоксид углерода": {
+                        "value": "0"
+                    },
+                    "Сероводород": {
+                        "value": "0"
+                    },
+                    "Метан": {
+                        "value": "0"
+                    },
+                    "Пропан": {
+                        "value": "0"
+                    },
+                    "Этан": {
+                        "value": "0"
+                    },
+                    "и-Бутан": {
+                        "value": "0"
+                    },
+                    "и-Пентан": {
+                        "value": "0"
+                    },
+                    "н-Бутан": {
+                        "value": "0"
+                    },
+                    "н-Пентан": {
+                        "value": "0"
+                    },
+                    "н-Гексан": {
+                        "value": "0"
+                    },
+                    "н-Гептан": {
+                        "value": "0"
+                    },
+                    "н-Октан": {
+                        "value": "0"
+                    },
+                    "н-Нонан": {
+                        "value": "0"
+                    },
+                    "н-Декан": {
+                        "value": "0"
+                    }
+                },
+                "Признак P,Q (р)": {
+                    "value": "0"
+                },
+                "Состав газa": {
+                    "Ro": {
+                        "value": "0.7"
+                    },
+                    "Нсв": {
+                        "value": "38627.462221"
+                    },
+                    "Нсн": {
+                        "value": "34843.46075"
+                    }
+                }
+            },
+            "rotation": 0,
+            "scrollX": -1,
+            "scrollY": -1,
+            "x": 94,
+            "y": 248,
+            "z": 0.2,
+            "zValueMax": 0,
+            "zValueMin": 0
+        },
+        {
+            "class": "Consumer",
+            "id": 13,
+            "parentID": 0,
+            "properties": {
+                "Design": {
+                    "Размеры": {
+                        "sceneHeight": {
+                            "value": "625"
+                        },
+                        "sceneLeft": {
+                            "value": "0"
+                        },
+                        "sceneTop": {
+                            "value": "0"
+                        },
+                        "sceneWidth": {
+                            "value": "625"
+                        }
+                    },
+                    "Фиксировать на схеме": {
+                        "value": "False"
+                    }
+                },
+                "Inner": {
+                    "Направление": {
+                        "value": "0"
+                    }
+                },
+                "P": {
+                    "value": "20"
+                },
+                "Q": {
+                    "value": "0"
+                },
+                "Признак P,Q (р)": {
+                    "value": "0"
+                },
+                "Results": {
+                    "Азот::Result": {
+                        "value": "0"
+                    },
+                    "Аргон::Result": {
+                        "value": "0"
+                    },
+                    "Вода::Result": {
+                        "value": "0"
+                    },
+                    "Водород::Result": {
+                        "value": "0"
+                    },
+                    "Кислород::Result": {
+                        "value": "0"
+                    },
+                    "Гелий::Result": {
+                        "value": "0"
+                    },
+                    "Монооксид углерода::Result": {
+                        "value": "0"
+                    },
+                    "Диоксид углерода::Result": {
+                        "value": "0"
+                    },
+                    "Сероводород::Result": {
+                        "value": "0"
+                    },
+                    "Метан::Result": {
+                        "value": "0"
+                    },
+                    "Пропан::Result": {
+                        "value": "0"
+                    },
+                    "Этан::Result": {
+                        "value": "0"
+                    },
+                    "и-Бутан::Result": {
+                        "value": "0"
+                    },
+                    "и-Пентан::Result": {
+                        "value": "0"
+                    },
+                    "н-Бутан::Result": {
+                        "value": "0"
+                    },
+                    "н-Пентан::Result": {
+                        "value": "0"
+                    },
+                    "н-Гексан::Result": {
+                        "value": "0"
+                    },
+                    "н-Гептан::Result": {
+                        "value": "0"
+                    },
+                    "н-Октан::Result": {
+                        "value": "0"
+                    },
+                    "н-Нонан::Result": {
+                        "value": "0"
+                    },
+                    "н-Декан::Result": {
+                        "value": "0"
+                    },
+                    "P::Result": {
+                        "value": "0"
+                    },
+                    "Q::Result": {
+                        "value": "0"
+                    },
+                    "T::Result": {
+                        "value": "0"
+                    }
+                },
+                "Данные регистрации": {
+                    "id": {
+                        "value": "Потребитель 13"
+                    },
+                    "text": {
+                        "value": ""
+                    },
+                    "Год ввода": {
+                        "value": ""
+                    },
+                    "Состояние по умолчанию": {
+                        "value": "0"
+                    }
+                }
+            },
+            "rotation": 0,
+            "scrollX": -1,
+            "scrollY": -1,
+            "x": 528,
+            "y": 248,
+            "z": 0.30000000000000004,
+            "zValueMax": 0,
+            "zValueMin": 0
+        },
+        {
+            "class": "Pipe",
+            "id": 15,
+            "parentID": 0,
+            "properties": {
+                "Design": {
+                    "Фиксировать на схеме": {
+                        "value": "False"
+                    }
+                },
+                "Inner": {
+                   "Направление": {
+                        "value": "0"
+                    }
+                },
+                "Kто": {
+                    "value": "1.3"
+                },
+                "Kэф": {
+                    "value": "0.95"
+                },
+                "Results": {
+                   "Pвх::Result": {
+                        "value": "50"
+                    },
+                    "Pвых::Result": {
+                        "value": "20"
+                    },
+                    "Qвх::Result": {
+                        "value": "35.244583"
+                    },
+                    "Qвых::Result": {
+                        "value": "35.244583"
+                    },
+                    "Tвх::Result": {
+                        "value": "30"
+                    },
+                    "Tвых::Result": {
+                        "value": "8.053997"
+                    }
+                },
+                "Tос": {
+                    "value": "0"
+                },
+                "dH": {
+                    "value": "100"
+                },
+                "Данные регистрации": {
+                    "id": {
+                        "value": "Труба 15"
+                    },
+                    "text": {
+                        "value": ""
+                    },
+                    "Год ввода": {
+                        "value": ""
+                    }
+                },
+                "Диаметр D": {
+                    "value": "1020"
+                },
+                "Диаметр d": {
+                    "value": "1000"
+                },
+                "Длина": {
+                    "value": "100000"
+                },
+                "Шероховатость": {
+                    "value": "0.03"
+                }
+            },
+            "x": 0,
+            "y": 0,
+            "z": 0.5
+        },
+        {
+            "class": "Monitor",
+            "id": 20,
+            "parentID": 0,
+            "sourceID": 13,
+            "properties": {
+                "id": {
+                    "value": "Потребитель: Потребитель 13"
+                },
+                "Исходные данные": {
+                },
+                "Оформление": {
+                    "bgcolor": {
+                        "value": "#ebf0ff"
+                    },
+                    "color": {
+                        "value": "#000000"
+                    },
+                    "font": {
+                        "value": "Helvetica,12,-1,5,400,0,0,0,0,0,0,0,0,0,0,1"
+                    },
+                    "transparent": {
+                        "value": "True"
+                    }
+                },
+                "Расчетные параметры": {
+                }
+            },
+            "property.1": "",
+            "property.10": "",
+            "property.2": "",
+            "property.3": "",
+            "property.4": "",
+            "property.5": "",
+            "property.6": "",
+            "property.7": "",
+            "property.8": "",
+            "property.9": "",
+            "result.1": "P::Result",
+            "result.10": "",
+            "result.2": "Q::Result",
+            "result.3": "T::Result",
+            "result.4": "",
+            "result.5": "",
+            "result.6": "",
+            "result.7": "",
+            "result.8": "",
+            "result.9": "",
+            "rotation": 0,
+            "x": 528,
+            "y": 272,
+            "z": 0.9999999999999999
+        },
+        {
+            "class": "Valve",
+            "id": 26,
+            "parentID": 0,
+            "properties": {
+                "Design": {
+                    "Фиксировать на схеме": {
+                        "value": "False"
+                    }
+                },
+                "Inner": {
+                    "Направление": {
+                        "value": "0"
+                    }
+                },
+                "Данные регистрации": {
+                    "id": {
+                        "value": "Кран 26"
+                    },
+                    "text": {
+                        "value": ""
+                    },
+                    "Год ввода": {
+                        "value": ""
+                    },
+                    "Состояние по умолчанию": {
+                        "value": "0"
+                    }
+                },
+                "Диаметр_ЛК": {
+                    "value": "0"
+                },
+                "Results": {
+                    "Pвх::Result": {
+                        "value": "0"
+                    },
+                    "Pвых::Result": {
+                        "value": "0"
+                    },
+                    "Tвх::Result": {
+                        "value": "0"
+                    },
+                    "Tвых::Result": {
+                        "value": "0"
+                    }
+                },
+                "Состояние": {
+                    "value": "0"
+                }
+            },
+            "rotation": 0,
+            "x": 224,
+            "y": 178,
+            "z": 1.5000000000000002
+        }
+    ],
+    "references": [
+        {
+            "class": "Producer",
+            "id": 12,
+            "title": "Поставщик 12"
+        },
+        {
+            "class": "Consumer",
+            "id": 13,
+            "title": "Потребитель 13"
+        },
+        {
+            "class": "Valve",
+            "id": 26,
+            "title": "Кран 26"
+        }
+    ],
+    "result": "ok",
+    "workingSet": "std"
+}

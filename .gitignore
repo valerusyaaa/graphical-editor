@@ -1,3 +1,11 @@
 node_modules
 dist
 demo/node_modules
+demo/.env.local
+
+# Артефакты сборки и черновики
+*.tsbuildinfo
+demo/_*.txt
+
+# Временные иконки при отладке
+demo/public/icons/_debug_*

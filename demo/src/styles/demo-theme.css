@@ -1,0 +1,118 @@
+/* Тёмная тема в духе Cursor: приглушённый фон, мягкий текст. */
+:root,
+[data-ge-theme="dark"] {
+	--ge-bg: #1e1e1e;
+	--ge-bg-elevated: #252526;
+	--ge-bg-hover: #2a2d2e;
+	--ge-border: #454545;
+	--ge-border-subtle: #333333;
+	--ge-text: #cccccc;
+	--ge-text-muted: #9d9d9d;
+	--ge-text-dim: #6e6e6e;
+	--ge-accent: #d4d4d4;
+	--ge-focus: #5a5a5a;
+	--ge-danger: #f48771;
+	--ge-hint-warn-bg: #2d2a1f;
+	--ge-hint-warn-text: #dcdcaa;
+	--ge-hint-warn-border: #5c4d1f;
+	--ge-row-border: #2d2d2d;
+	--ge-section-readonly-bg: #2d2418;
+	--ge-canvas-bg: #141414;
+	--ge-tooltip-bg: #2a2d2e;
+	--ge-tooltip-text: #f3f4f6;
+	--ge-toolbar-icon-filter: invert(1) brightness(1.18) contrast(0.94);
+	--ge-scrollbar-size: 10px;
+	--ge-scrollbar-thumb: rgba(121, 121, 121, 0.35);
+	--ge-scrollbar-thumb-hover: rgba(121, 121, 121, 0.55);
+	--ge-scrollbar-track: transparent;
+}
+
+/* Светлая тема: белый фон, чёрный текст, серые акценты. */
+[data-ge-theme="light"] {
+	--ge-bg: #ffffff;
+	--ge-bg-elevated: #f5f5f5;
+	--ge-bg-hover: #e5e5e5;
+	--ge-border: #a3a3a3;
+	--ge-border-subtle: #d4d4d4;
+	--ge-text: #0a0a0a;
+	--ge-text-muted: #525252;
+	--ge-text-dim: #737373;
+	--ge-accent: #262626;
+	--ge-focus: #737373;
+	--ge-danger: #dc2626;
+	--ge-hint-warn-bg: #fffbeb;
+	--ge-hint-warn-text: #92400e;
+	--ge-hint-warn-border: #d97706;
+	--ge-row-border: #e5e5e5;
+	--ge-section-readonly-bg: #fef3c7;
+	--ge-tooltip-bg: #111827;
+	--ge-tooltip-text: #f9fafb;
+	--ge-toolbar-icon-filter: none;
+	--ge-scrollbar-size: 10px;
+	--ge-scrollbar-thumb: rgba(100, 100, 100, 0.4);
+	--ge-scrollbar-thumb-hover: rgba(80, 80, 80, 0.65);
+	--ge-scrollbar-track: transparent;
+}
+
+html,
+body,
+#app {
+	margin: 0;
+	height: 100%;
+	background: var(--ge-bg);
+	color: var(--ge-text);
+}
+
+/* Контекстное меню (Teleport в body) — наследует data-ge-theme на html. */
+.schema-editor-ctx-menu {
+	background: var(--ge-bg-elevated) !important;
+	border-color: var(--ge-border) !important;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2) !important;
+}
+
+.schema-editor-ctx-menu button {
+	color: var(--ge-text) !important;
+}
+
+.schema-editor-ctx-menu button:hover:not(:disabled) {
+	background: var(--ge-bg-hover) !important;
+}
+
+.schema-editor-ctx-menu button.danger {
+	color: var(--ge-danger) !important;
+}
+
+.schema-editor-ctx-menu .sep {
+	border-top-color: var(--ge-border-subtle) !important;
+}
+
+/* Узкая серая полоса прокрутки (как в Cursor / VS Code). */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: var(--ge-scrollbar-thumb, rgba(121, 121, 121, 0.35))
+		var(--ge-scrollbar-track, transparent);
+}
+
+*::-webkit-scrollbar {
+	width: var(--ge-scrollbar-size, 10px);
+	height: var(--ge-scrollbar-size, 10px);
+}
+
+*::-webkit-scrollbar-track {
+	background: var(--ge-scrollbar-track, transparent);
+}
+
+*::-webkit-scrollbar-thumb {
+	background-color: var(--ge-scrollbar-thumb, rgba(121, 121, 121, 0.35));
+	border-radius: 999px;
+	border: 3px solid transparent;
+	background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background-color: var(--ge-scrollbar-thumb-hover, rgba(121, 121, 121, 0.55));
+}
+
+*::-webkit-scrollbar-corner {
+	background: transparent;
+}

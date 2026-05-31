@@ -1,0 +1,32 @@
+{
+  "name": "charts-for-diplom-example",
+  "private": true,
+  "description": "Nuxt 4: пример использования charts-for-diplom",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "@iconify/vue": "^5.0.0",
+    "@pinia/nuxt": "^0.11.3",
+    "charts-for-diplom": "file:..",
+    "echarts": "^6.0.0",
+    "element-plus": "^2.13.0",
+    "moment-timezone": "^0.6.0",
+    "nuxt": "^4.2.2",
+    "@stomp/stompjs": "^7.2.1",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.25",
+    "vue-echarts": "^8.0.1",
+    "vue-router": "^4.6.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

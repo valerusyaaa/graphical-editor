@@ -4,12 +4,18 @@
     "version": "0.1.0",
     "scripts": {
         "dev:demo": "pnpm --dir demo dev",
+        "dev:charts-api": "pnpm --dir demo dev:charts-api",
         "build:core": "pnpm --filter @graphical-editor/core build",
         "build:demo": "pnpm --dir demo build",
         "dev": "pnpm dev:demo",
         "build": "pnpm build:core && pnpm build:demo"
     },
     "dependencies": {
+        "@primeuix/utils": "latest",
+        "pinia": "^3.0.4",
+        "pixi-viewport": "latest",
+        "pixi.js": "latest",
+        "primevue": "latest",
         "vue": "^3.4.0"
     },
     "devDependencies": {

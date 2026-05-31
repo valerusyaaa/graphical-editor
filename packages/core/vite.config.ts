@@ -9,13 +9,14 @@ export default defineConfig({
       entry: resolve(__dirname, "src/index.ts"),
       name: "GraphicalEditorCore",
       fileName: "index",
-      formats: ["es", "cjs", "umd"]
+      formats: ["es", "cjs"]
     },
     rollupOptions: {
-      external: ["vue"],
+      external: ["vue", "pinia"],
       output: {
         globals: {
-          vue: "Vue"
+          vue: "Vue",
+          pinia: "Pinia"
         }
       }
     }

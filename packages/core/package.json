@@ -5,13 +5,16 @@
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "vite build"
+    "build": "vite build",
+    "bench:render-schema": "node scripts/benchmark-render-schema.mjs"
   },
   "peerDependencies": {
+    "pinia": "^3.0.0",
     "vue": "^3.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
+    "pinia": "^3.0.4",
     "typescript": "^5.0.0",
     "vite": "^5.0.0",
     "vue": "^3.4.0"

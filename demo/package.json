@@ -3,15 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "gen:perf-schemes": "node scripts/generate-perf-schemes.mjs",
     "dev": "vite",
+    "dev:charts-api": "dotnet run --project ../graphics/graphics/data-service/DataService.csproj",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@graphical-editor/core": "link:../packages/core",
-    "vue": "^3.4.0"
+    "@graphical-editor/editor-bridge": "link:../packages/editor-bridge",
+    "@stomp/stompjs": "^7.2.1",
+    "charts-for-diplom": "link:../graphics/graphics",
+    "echarts": "^6.0.0",
+    "element-plus": "^2.13.0",
+    "moment-timezone": "^0.6.0",
+    "ofetch": "^1.4.1",
+    "pinia": "^3.0.4",
+    "vue": "^3.4.0",
+    "vue-echarts": "^8.0.1"
   },
   "devDependencies": {
+    "@types/node": "^25.7.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "typescript": "^5.0.0",
     "vite": "^5.0.0",

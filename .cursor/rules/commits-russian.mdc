@@ -1,0 +1,20 @@
+---
+description: Git commit message — русский язык, Conventional Commits (generate commit, кнопка в Source Control)
+globs: 
+alwaysApply: true
+---
+
+Сообщения коммитов ВСЕГДА только на русском языке. При генерации (в том числе по кнопке ✨ в Source Control) никогда не пиши на английском.
+
+1. **Формат** — [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
+   - Обязательный префикс: `type` или `type(scope):`, затем пробел и краткое описание.
+   - Типы: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`.
+   - Scope — опционально, в скобках (например, `feat(panel):`).
+   - Описание — в повелительном наклонении, без точки в конце заголовка.
+
+2. **Язык** — сообщение коммита (описание и при необходимости body) пиши на **русском языке**. Префикс типа и scope можно оставлять на английском.
+
+Примеры:
+- `feat(forecast): добавлена панель прогноза`
+- `fix: исправлена валидация поля давления`
+- `docs: обновлено описание API`

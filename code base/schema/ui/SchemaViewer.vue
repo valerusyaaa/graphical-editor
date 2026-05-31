@@ -2,7 +2,6 @@
 import { FullSkeleton } from "@/shared/common";
 import { useDataScheme, createGraphicObjectDnd, useRefreshContentSchema, createGraphicObjectsEditor } from "../lib";
 import { GraphicalEditor, useDragAndDrop, useGraphicSchemeStore } from "@/shared/graphical-editor";
-import { HintViewer } from "@/entities/projects";
 import { useSelectedObjectStore } from "@/entities/select-object";
 import { EditingSchemaTool } from "../model";
 import { useLabelEditorStore } from "@/pages/panels";
