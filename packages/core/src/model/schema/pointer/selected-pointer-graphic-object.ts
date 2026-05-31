@@ -45,7 +45,7 @@ export class SelectedPointerGraphicObject extends SelectedGraphicObject {
         };
         this.graphics.onrightclick = async event => {
             event.stopPropagation();
-            this.tool.onContextMenuPointerObject(event, this);
+            await this.tool.onContextMenuPointerObject(event, this);
         };
 
     }

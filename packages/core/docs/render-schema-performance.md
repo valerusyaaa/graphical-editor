@@ -33,5 +33,5 @@ pnpm --dir packages/core bench:render-schema
 
 ## Ограничения
 
-- `buildSelectionLayers` вызывается при patch только если среди изменённых id есть выделенные объекты; иначе — только `applyPinnedSelection`.
+- При инкрементальном patch слой selection пересобирается целиком; перед этим старые контуры снимаются с viewport (`destroySelectionDisplayObjects`).
 - Смена порядка z-order в `objects[]` считается структурной и вызывает полную пересборку.

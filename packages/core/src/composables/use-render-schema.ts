@@ -159,15 +159,8 @@ export function useRenderSchema(
 		}
 
 		patchViewportObjects(viewport, patchIds);
-		const selected = graphicSchemaStore.selectedObjectIds;
-		const selectionNeedsRebuild =
-			selected.length > 0 &&
-			selected.some((id) => patchIds.has(id));
-		if (selectionNeedsRebuild) {
-			buildSelectionLayers(viewport);
-		} else {
-			applyPinnedSelection(viewport);
-		}
+		// После сдвига объектов пересобираем selection (с предварительным снятием старых контуров).
+		buildSelectionLayers(viewport);
 	}
 
 	function scheduleObjectsSync() {
@@ -253,7 +246,37 @@ export function useRenderSchema(
 		}
 	}
 
+	/** Снять старые контуры/hover-слои selection с viewport (иначе остаются «следы» после drag). */
+	function destroySelectionDisplayObjects() {
+		const detach = (node: { parent?: unknown; destroy?: (opts?: object) => void } | null | undefined) => {
+			if (!node) return;
+			const display = node as {
+				parent?: { removeChild: (child: unknown) => void };
+				destroy?: (opts?: object) => void;
+			};
+			if (display.parent) {
+				display.parent.removeChild(display);
+			}
+			display.destroy?.({ children: true });
+		};
+
+		for (const s of graphicSchemaStore.selectedPointerObjs) {
+			detach(s.graphics);
+		}
+		for (const s of graphicSchemaStore.selectedLinearObjs) {
+			detach(s.graphics);
+			detach(s.shadowGraphicsLine);
+			for (const n of s.nodes) {
+				detach(n.graphics);
+			}
+		}
+
+		graphicSchemaStore.scheme.layerSelectedGraphicObject.pointer = [];
+		graphicSchemaStore.scheme.layerSelectedGraphicObject.linear = [];
+	}
+
 	function buildSelectionLayers(viewport: Viewport) {
+		destroySelectionDisplayObjects();
 		const pointerSelected: SelectedPointerGraphicObject[] = [];
 		const linearSelected: SelectedLinearGraphicObject[] = [];
 		const pinned = () =>

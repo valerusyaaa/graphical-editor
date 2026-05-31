@@ -1,13 +1,13 @@
 export type DemoApiPointerObject = {
 	id: number;
-	kind: "gate_valve";
+	kind: "Valve";
 	position: { x: number; y: number };
 	techObjectId: number;
 };
 
 export type DemoApiSupplierObject = {
 	id: number;
-	kind: "supplier";
+	kind: "Producer";
 	position: { x: number; y: number };
 	techObjectId: number;
 };
@@ -35,7 +35,7 @@ export type DemoApiObject =
 export const baseApiObjects: DemoApiObject[] = [
 	{
 		id: 1,
-		kind: "gate_valve",
+		kind: "Valve",
 		position: { x: 100, y: 100 },
 		techObjectId: 1,
 	},
@@ -50,7 +50,7 @@ export const baseApiObjects: DemoApiObject[] = [
 	},
 	{
 		id: 3,
-		kind: "supplier",
+		kind: "Producer",
 		position: { x: 380, y: 90 },
 		techObjectId: 3,
 	},

@@ -1,6 +1,28 @@
 import { defineStore } from "pinia";
 import type { GraphicObjectDto, ObjectBaseData } from "../../api/types";
 import type { ObjectType, XYPosition } from "../schema/types";
+import { useGraphicSchemeStore } from "./graphic-scheme.store";
+import {
+	type ClipboardBundle,
+	cloneItemsForPaste,
+	deepCloneDto,
+	selectionAnchor,
+} from "./selection-clipboard";
+
+type PointerSchemeDragSync = {
+	kind: "pointer";
+	id: number;
+	schemePosition: XYPosition;
+	offsets: { left: number; top: number };
+};
+
+type LinearSchemeDragSync = {
+	kind: "linear";
+	id: number;
+	points: XYPosition[];
+};
+
+export type SchemeGeometryDragSync = PointerSchemeDragSync | LinearSchemeDragSync;
 
 export type EditorGraphObjectType = ObjectType;
 
@@ -11,6 +33,17 @@ export type EditorClipboardBridge = {
 	clientToWorld(clientX: number, clientY: number): { x: number; y: number } | null;
 	/** Центр видимой области viewport в мировых координатах (для Ctrl+V) */
 	getViewportCenterWorld(): { x: number; y: number } | null;
+	isObjectFixed?(id: number): boolean;
+	setObjectFixed?(id: number, fixed: boolean): void;
+	setObjectsFixed?(ids: number[], fixed: boolean): void;
+	/** Открыть/закрыть кран (только Valve): обновляет `Состояние` и перерисовку. */
+	setValveOpen?(ids: number[], open: boolean): void;
+	isValveOpen?(id: number): boolean;
+	/** Показать/скрыть монитор свойств для объекта схемы. */
+	toggleMonitorForSource?(sourceId: number): void;
+	canShowMonitorFor?(id: number): boolean;
+	/** Открыть окно графиков с вкладками для выделенных кранов/труб. */
+	openChartsForSchemeObjectIds?(schemeIds: number[]): void;
 };
 
 export type EditorContextMenuState = {
@@ -20,6 +53,10 @@ export type EditorContextMenuState = {
 	targetId: number | null;
 	targetGraph: EditorGraphObjectType | null;
 	isPane: boolean;
+	/** Снимок выделения на момент открытия меню (для копирования/вырезания группы). */
+	operationIds: number[];
+	/** Точка вставки в мировых координатах (ПКМ по холсту). */
+	pasteWorld: XYPosition | null;
 };
 
 const MAX_UNDO = 40;
@@ -27,22 +64,20 @@ const MAX_UNDO = 40;
 function cloneObjects(
 	list: GraphicObjectDto<ObjectBaseData>[],
 ): GraphicObjectDto<ObjectBaseData>[] {
-	return structuredClone(list);
-}
-
-function nextObjectId(
-	list: GraphicObjectDto<ObjectBaseData>[],
-): number {
-	return list.reduce((m, o) => Math.max(m, o.id), 0) + 1;
+	return deepCloneDto(list);
 }
 
 export const useEditorClipboardStore = defineStore("editor-clipboard", {
 	state: () => ({
 		bridge: null as EditorClipboardBridge | null,
-		clipboard: null as GraphicObjectDto<ObjectBaseData> | null,
+		clipboardBundle: null as ClipboardBundle | null,
 		undoStack: [] as GraphicObjectDto<ObjectBaseData>[][],
 		/** Последний объект, по которому был mousedown (для Ctrl+C и т.д.) */
 		focusedObjectId: null as number | null,
+		/** Курсор над схемой (мир) — для Ctrl+V. */
+		lastCursorWorld: null as XYPosition | null,
+		/** ПКМ по схеме / клик по пустому месту — запасная точка вставки. */
+		pasteTargetWorld: null as XYPosition | null,
 		menu: {
 			visible: false,
 			screenX: 0,
@@ -54,7 +89,7 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 	}),
 	getters: {
 		canPaste(): boolean {
-			return this.clipboard !== null;
+			return (this.clipboardBundle?.items.length ?? 0) > 0;
 		},
 	},
 	actions: {
@@ -64,9 +99,69 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 		unregisterBridge() {
 			this.bridge = null;
 			this.closeMenu();
-			this.clipboard = null;
+			this.clipboardBundle = null;
 			this.undoStack = [];
 			this.focusedObjectId = null;
+			this.lastCursorWorld = null;
+			this.pasteTargetWorld = null;
+		},
+
+		setLastCursorWorld(world: XYPosition | null) {
+			this.lastCursorWorld = world;
+		},
+
+		setPasteTargetFromClient(clientX: number, clientY: number) {
+			const b = this.bridge;
+			if (!b) return;
+			const world = b.clientToWorld(clientX, clientY);
+			if (world) this.pasteTargetWorld = world;
+		},
+
+		resolvePasteWorld(): XYPosition | null {
+			const b = this.bridge;
+			if (!b) return null;
+			return (
+				this.lastCursorWorld ??
+				this.pasteTargetWorld ??
+				b.getViewportCenterWorld()
+			);
+		},
+
+		isObjectFixed(id: number): boolean {
+			return this.bridge?.isObjectFixed?.(id) ?? false;
+		},
+
+		setSelectionFixed(ids: number[], fixed: boolean) {
+			if (ids.length === 0) return;
+			this.pushUndo();
+			const b = this.bridge;
+			if (b?.setObjectsFixed) {
+				b.setObjectsFixed(ids, fixed);
+			} else {
+				for (const id of ids) {
+					b?.setObjectFixed?.(id, fixed);
+				}
+			}
+			this.closeMenu();
+		},
+
+		fixMenuTarget() {
+			const ids = this.resolveOperationIds();
+			this.setSelectionFixed(ids, true);
+		},
+
+		unfixMenuTarget() {
+			const ids = this.resolveOperationIds();
+			this.setSelectionFixed(ids, false);
+		},
+
+		setMenuTargetValveOpen(open: boolean) {
+			const id = this.menu.targetId;
+			if (id == null || this.menu.isPane) return;
+			const b = this.bridge;
+			if (!b?.setValveOpen) return;
+			this.pushUndo();
+			b.setValveOpen([id], open);
 		},
 
 		setFocusedObject(id: number | null) {
@@ -83,41 +178,54 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 			schemePosition: XYPosition,
 			offsets: { left: number; top: number },
 		) {
-			const b = this.bridge;
-			if (!b) return;
-			const objs = b.getObjects();
-			const idx = objs.findIndex((o) => o.id === id);
-			if (idx < 0) return;
-			const cur = objs[idx];
-			if (cur.graphObjectType !== "pointer" || !cur.position) return;
-			const dtoPos: XYPosition = {
-				x: schemePosition.x + offsets.left,
-				y: schemePosition.y + offsets.top,
-			};
-			const next = objs.slice();
-			next[idx] = { ...cur, position: { ...dtoPos } };
-			b.setObjects(next);
+			this.batchSyncGeometryFromScheme([
+				{ kind: "pointer", id, schemePosition, offsets },
+			]);
 		},
 
 		/** Обновляет `points` линейного объекта в v-model после drag / редактирования узлов. */
 		syncLinearGeometryFromScheme(id: number, points: XYPosition[]) {
+			this.batchSyncGeometryFromScheme([
+				{ kind: "linear", id, points },
+			]);
+		},
+
+		/**
+		 * Одно обновление v-model после группового drag — иначе промежуточные setObjects
+		 * перерисовывают схему и сбрасывают ещё не сохранённые объекты.
+		 */
+		batchSyncGeometryFromScheme(updates: SchemeGeometryDragSync[]) {
 			const b = this.bridge;
-			if (!b) return;
-			const objs = b.getObjects();
-			const idx = objs.findIndex((o) => o.id === id);
-			if (idx < 0) return;
-			const cur = objs[idx];
-			if (cur.graphObjectType !== "linear" || !cur.points?.length) return;
-			const next = objs.slice();
-			next[idx] = {
-				...cur,
-				points: points.map((p) => ({ ...p })),
-			};
-			b.setObjects(next);
+			if (!b || updates.length === 0) return;
+			const objs = b.getObjects().slice();
+			let changed = false;
+			for (const u of updates) {
+				const idx = objs.findIndex((o) => o.id === u.id);
+				if (idx < 0) continue;
+				const cur = objs[idx];
+				if (u.kind === "pointer") {
+					if (cur.graphObjectType !== "pointer" || !cur.position) continue;
+					const dtoPos: XYPosition = {
+						x: u.schemePosition.x + u.offsets.left,
+						y: u.schemePosition.y + u.offsets.top,
+					};
+					objs[idx] = { ...cur, position: { ...dtoPos } };
+					changed = true;
+				} else if (u.kind === "linear") {
+					if (cur.graphObjectType !== "linear") continue;
+					objs[idx] = {
+						...cur,
+						points: u.points.map((p) => ({ ...p })),
+					};
+					changed = true;
+				}
+			}
+			if (changed) b.setObjects(objs);
 		},
 
 		closeMenu() {
-			this.menu.visible = false;
+			if (!this.menu.visible) return;
+			this.menu = { ...this.menu, visible: false };
 		},
 
 		openMenuForObject(
@@ -126,7 +234,16 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 			targetId: number,
 			targetGraph: EditorGraphObjectType,
 		) {
+			const b = this.bridge;
+			const gs = useGraphicSchemeStore();
+			const operationIds =
+				gs.selectedObjectIds.includes(targetId) &&
+				gs.selectedObjectIds.length > 0
+					? [...gs.selectedObjectIds]
+					: [targetId];
 			this.focusedObjectId = targetId;
+			const world = b?.clientToWorld(screenX, screenY) ?? null;
+			if (world) this.pasteTargetWorld = world;
 			this.menu = {
 				visible: true,
 				screenX,
@@ -134,11 +251,24 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 				targetId,
 				targetGraph,
 				isPane: false,
+				operationIds,
+				pasteWorld: world,
 			};
 		},
 
-		openMenuForPane(clientX: number, clientY: number) {
+		openMenuForPane(
+			clientX: number,
+			clientY: number,
+			pasteWorld?: XYPosition | null,
+		) {
+			const gs = useGraphicSchemeStore();
+			const b = this.bridge;
+			const world =
+				pasteWorld ??
+				b?.clientToWorld(clientX, clientY) ??
+				null;
 			this.focusedObjectId = null;
+			if (world) this.pasteTargetWorld = world;
 			this.menu = {
 				visible: true,
 				screenX: clientX,
@@ -146,6 +276,8 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 				targetId: null,
 				targetGraph: null,
 				isPane: true,
+				operationIds: [...gs.selectedObjectIds],
+				pasteWorld: world,
 			};
 		},
 
@@ -164,38 +296,117 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 			this.closeMenu();
 		},
 
-		copyObject(id: number) {
+		resolveOperationIds(): number[] {
+			if (this.menu.visible && this.menu.operationIds.length > 0) {
+				return [...this.menu.operationIds];
+			}
+			const gs = useGraphicSchemeStore();
+			if (gs.selectedObjectIds.length > 0) {
+				return [...gs.selectedObjectIds];
+			}
+			const id =
+				this.menu.visible && !this.menu.isPane && this.menu.targetId != null
+					? this.menu.targetId
+					: this.focusedObjectId;
+			return id != null ? [id] : [];
+		},
+
+		copySelection(ids: number[]) {
 			const b = this.bridge;
-			if (!b) return;
-			const o = b.getObjects().find((x) => x.id === id);
-			if (o) this.clipboard = structuredClone(o);
+			if (!b || ids.length === 0) return;
+			const objs = b.getObjects();
+			const items = ids
+				.map((id) => objs.find((o) => o.id === id))
+				.filter((o): o is GraphicObjectDto<ObjectBaseData> => o != null)
+				.map((o) => deepCloneDto(o));
+			if (!items.length) return;
+			this.clipboardBundle = {
+				items,
+				anchor: selectionAnchor(objs, ids),
+			};
+		},
+
+		copyObject(id: number) {
+			this.copySelection([id]);
 		},
 
 		copyFocusedOrMenuTarget() {
-			const id =
-				this.menu.visible && !this.menu.isPane && this.menu.targetId != null
-					? this.menu.targetId
-					: this.focusedObjectId;
-			if (id == null) return;
-			this.copyObject(id);
+			const ids = this.resolveOperationIds();
+			if (!ids.length) return;
+			this.copySelection(ids);
+		},
+
+		cutSelection(ids: number[]) {
+			const b = this.bridge;
+			if (!b || ids.length === 0) return;
+			this.copySelection(ids);
+			this.pushUndo();
+			const drop = new Set(ids);
+			b.setObjects(b.getObjects().filter((o) => !drop.has(o.id)));
+			useGraphicSchemeStore().clearSelectedObjects();
+			this.closeMenu();
 		},
 
 		cutFocusedOrMenuTarget() {
-			const id =
-				this.menu.visible && !this.menu.isPane && this.menu.targetId != null
-					? this.menu.targetId
-					: this.focusedObjectId;
-			if (id == null) return;
-			this.cutObject(id);
+			const ids = this.resolveOperationIds();
+			if (!ids.length) return;
+			this.cutSelection(ids);
 		},
 
 		deleteFocusedOrMenuTarget() {
+			const gs = useGraphicSchemeStore();
+			if (gs.selectedObjectIds.length > 0) {
+				this.deleteObjects([...gs.selectedObjectIds]);
+				return;
+			}
 			const id =
 				this.menu.visible && !this.menu.isPane && this.menu.targetId != null
 					? this.menu.targetId
 					: this.focusedObjectId;
 			if (id == null) return;
 			this.deleteObject(id);
+		},
+
+		deleteObjects(ids: number[]) {
+			const b = this.bridge;
+			if (!b || ids.length === 0) return;
+			const drop = new Set(ids);
+			const objs = b.getObjects();
+			if (!objs.some((o) => drop.has(o.id))) return;
+			this.pushUndo();
+			b.setObjects(objs.filter((o) => !drop.has(o.id)));
+			useGraphicSchemeStore().clearSelectedObjects();
+			this.closeMenu();
+		},
+
+		rotateObject90(id: number) {
+			const b = this.bridge;
+			if (!b) return;
+			const objs = b.getObjects();
+			const idx = objs.findIndex((o) => o.id === id);
+			if (idx < 0) return;
+			const cur = objs[idx];
+			if (cur.graphObjectType !== "pointer") return;
+			this.pushUndo();
+			const nextAngle = ((cur.rotateAngle ?? 0) + 90) % 360;
+			const next = objs.slice();
+			next[idx] = { ...cur, rotateAngle: nextAngle };
+			b.setObjects(next);
+			this.closeMenu();
+		},
+
+		rotateMenuTarget90() {
+			const id =
+				this.menu.visible && !this.menu.isPane && this.menu.targetId != null
+					? this.menu.targetId
+					: this.focusedObjectId;
+			if (id == null) return;
+			this.rotateObject90(id);
+		},
+
+		selectAll() {
+			useGraphicSchemeStore().selectAllObjects();
+			this.closeMenu();
 		},
 
 		bringFocusedOrMenuTargetToFront() {
@@ -216,20 +427,14 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 			this.sendToBack(id);
 		},
 
-		/** Ctrl+V: вставка в центр видимой области (ПКМ «Вставить» — отдельно `pasteAtScreen`). */
+		/** Ctrl+V: вставка у курсора, иначе у последнего ПКМ / центра viewport. */
 		pasteFromKeyboard() {
-			this.pasteAtViewportCenter();
+			const world = this.resolvePasteWorld();
+			this.applyPaste(world);
 		},
 
 		cutObject(id: number) {
-			const b = this.bridge;
-			if (!b) return;
-			const o = b.getObjects().find((x) => x.id === id);
-			if (!o) return;
-			this.pushUndo();
-			this.clipboard = structuredClone(o);
-			b.setObjects(b.getObjects().filter((x) => x.id !== id));
-			this.closeMenu();
+			this.cutSelection([id]);
 		},
 
 		deleteObject(id: number) {
@@ -247,19 +452,10 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 			const objs = b.getObjects();
 			const idx = objs.findIndex((o) => o.id === id);
 			if (idx < 0) return;
-			const type = objs[idx].graphObjectType;
 			this.pushUndo();
 			const item = objs[idx];
 			const rest = objs.filter((_, i) => i !== idx);
-			let insertAt = rest.length;
-			for (let i = rest.length - 1; i >= 0; i--) {
-				if (rest[i].graphObjectType === type) {
-					insertAt = i + 1;
-					break;
-				}
-			}
-			const next = [...rest.slice(0, insertAt), item, ...rest.slice(insertAt)];
-			b.setObjects(next);
+			b.setObjects([...rest, item]);
 			this.closeMenu();
 		},
 
@@ -269,75 +465,41 @@ export const useEditorClipboardStore = defineStore("editor-clipboard", {
 			const objs = b.getObjects();
 			const idx = objs.findIndex((o) => o.id === id);
 			if (idx < 0) return;
-			const type = objs[idx].graphObjectType;
 			this.pushUndo();
 			const item = objs[idx];
 			const rest = objs.filter((_, i) => i !== idx);
-			let insertAt = 0;
-			for (let i = 0; i < rest.length; i++) {
-				if (rest[i].graphObjectType === type) {
-					insertAt = i;
-					break;
-				}
-			}
-			const next = [...rest.slice(0, insertAt), item, ...rest.slice(insertAt)];
-			b.setObjects(next);
+			b.setObjects([item, ...rest]);
 			this.closeMenu();
 		},
 
 		pasteAtScreen(screenX: number, screenY: number) {
 			const b = this.bridge;
-			if (!b || !this.clipboard) return;
-			const world = b.clientToWorld(screenX, screenY);
-			this.applyPaste(world);
-		},
-
-		pasteAtViewportCenter() {
-			const b = this.bridge;
-			if (!b || !this.clipboard) return;
-			const world = b.getViewportCenterWorld();
+			if (!b || !this.clipboardBundle?.items.length) return;
+			const world =
+				b.clientToWorld(screenX, screenY) ??
+				this.menu.pasteWorld ??
+				this.resolvePasteWorld();
 			this.applyPaste(world);
 		},
 
 		applyPaste(world: { x: number; y: number } | null) {
 			const b = this.bridge;
-			if (!b || !this.clipboard) return;
-			const base = structuredClone(this.clipboard);
-			const objs = b.getObjects();
-			const newId = nextObjectId(objs);
-			base.id = newId;
-			if (base.data && typeof base.data === "object" && "techObjectId" in base.data) {
-				(base.data as ObjectBaseData).techObjectId = newId;
-			}
+			const bundle = this.clipboardBundle;
+			if (!b || !bundle?.items.length) return;
 
-			if (base.graphObjectType === "pointer" && base.position) {
-				if (world) {
-					base.position = { x: world.x, y: world.y };
-				} else {
-					base.position = {
-						x: base.position.x + 16,
-						y: base.position.y + 16,
-					};
-				}
-			} else if (base.graphObjectType === "linear" && base.points?.length) {
-				const anchor = base.points[0];
-				if (world) {
-					const dx = world.x - anchor.x;
-					const dy = world.y - anchor.y;
-					base.points = base.points.map((p) => ({
-						x: p.x + dx,
-						y: p.y + dy,
-					}));
-				} else {
-					base.points = base.points.map((p) => ({
-						x: p.x + 16,
-						y: p.y + 16,
-					}));
-				}
-			}
+			const objs = b.getObjects();
+			const offset = world
+				? {
+						x: world.x - bundle.anchor.x,
+						y: world.y - bundle.anchor.y,
+					}
+				: { x: 16, y: 16 };
+
+			const pasted = cloneItemsForPaste(bundle.items, objs, offset);
 
 			this.pushUndo();
-			b.setObjects([...objs, base]);
+			b.setObjects([...objs, ...pasted]);
+			useGraphicSchemeStore().setSelectedObjectIds(pasted.map((p) => p.id));
 			this.closeMenu();
 		},
 	},

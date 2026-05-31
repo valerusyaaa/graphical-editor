@@ -33,6 +33,16 @@ export type GraphicSchemeState = {
 	isDragObjects: boolean;
 	isDragPan: boolean;
 	selectionDragObjectId: number | null;
+	/** Закреплённое выделение (ПКМ «Выбрать всё», Ctrl+A). */
+	selectedObjectIds: number[];
+	/** Показать координатную сетку на холсте. */
+	gridVisible: boolean;
+	gridStep: number;
+	/** Цвет линий сетки (hex). */
+	gridLineColor: number;
+	gridLineAlpha: number;
+	gridDotSize: number;
+	uiTheme: "dark" | "light";
 	backroundColor: string;
 	preRenderCbs: (() => void)[];
 	postRenderCbs: (() => void)[];

@@ -1,7 +1,20 @@
 import type { GraphicObjectDto, ObjectBaseData } from "../../../packages/core/src/api/types";
-import type { MetamodelDragPayload } from "../data/metamodel-db.stub";
+import {
+	getMetamodelObjectTypeById,
+	type MetamodelDragPayload,
+} from "../data/metamodel-db.stub";
 import { getDescriptionByType } from "../../../packages/core/src/model/schema/graphic-object-dto-factory";
 import type { ObjectDescription } from "../../../packages/core/src/api/types";
+import {
+	canonicalFeatureType,
+	isMonitorFeature,
+	isValveFeature,
+} from "../../../packages/core/src/model/schema/feature-type-aliases";
+import { createDefaultMonitorBackendProperties } from "../../../packages/core/src/lib/monitor-object";
+import { setValveOpenInProperties } from "../../../packages/core/src/lib/valve-state";
+import { ensureChartObjectIds } from "../../../packages/core/src/lib/chart-object-map";
+import { applyRegistrationLabelToProperties } from "../../../packages/core/src/lib/registration-id";
+import { getDefaultPropertiesForFeature } from "./backend-property-templates";
 
 function nextObjectId(objects: GraphicObjectDto<ObjectBaseData>[]): number {
 	if (!objects.length) return 1;
@@ -27,21 +40,52 @@ export function createInstanceFromMetamodelDrop(
 	objects: GraphicObjectDto<ObjectBaseData>[],
 	descriptions: ObjectDescription[],
 ): GraphicObjectDto<ObjectBaseData> {
+	const mmType = getMetamodelObjectTypeById(payload.objectTypeId);
+	const featureCode = canonicalFeatureType(
+		mmType?.editorFeature ?? payload.code,
+	);
+
 	// Проверка: для типа есть дескриптор отображения
-	getDescriptionByType(descriptions, payload.code);
+	getDescriptionByType(descriptions, featureCode);
 
 	const id = nextObjectId(objects);
 	const techObjectId = nextTechObjectId(objects);
+	const defaults = getDefaultPropertiesForFeature(featureCode);
+	if (Object.keys(defaults).length) {
+		applyRegistrationLabelToProperties(defaults, featureCode, id);
+		if (isValveFeature(featureCode)) {
+			setValveOpenInProperties(defaults, false);
+		}
+	}
+	if (isMonitorFeature(featureCode)) {
+		const data: ObjectBaseData = {
+			techObjectId,
+			objectTypeId: payload.objectTypeId,
+			monitorSourceId: 0,
+			monitorResultSlots: Array(10).fill(""),
+			backendProperties: createDefaultMonitorBackendProperties("Монитор"),
+		};
+		return {
+			id,
+			featureObjectType: featureCode,
+			graphObjectType: "pointer",
+			position: { x: world.x, y: world.y },
+			data,
+		};
+	}
 	const data: ObjectBaseData = {
 		techObjectId,
 		objectTypeId: payload.objectTypeId,
+		...(Object.keys(defaults).length
+			? { backendProperties: defaults }
+			: {}),
 	};
 
 	if (payload.graphObjectType === "linear") {
 		const segmentLength = 140;
 		return {
 			id,
-			featureObjectType: payload.code,
+			featureObjectType: featureCode,
 			graphObjectType: "linear",
 			points: [
 				{ x: world.x - segmentLength / 2, y: world.y },
@@ -53,7 +97,7 @@ export function createInstanceFromMetamodelDrop(
 
 	return {
 		id,
-		featureObjectType: payload.code,
+		featureObjectType: featureCode,
 		graphObjectType: "pointer",
 		position: { x: world.x, y: world.y },
 		data,

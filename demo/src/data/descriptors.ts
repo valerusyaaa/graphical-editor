@@ -15,7 +15,7 @@ export const baseDescriptors: ObjectDescription[] = [
 		selectionStrokeColor: "#93c5fd",
 	},
 	{
-		featureObjectType: "gate_valve",
+		featureObjectType: "Valve",
 		graphObjectType: "pointer",
 		thikness: 10,
 		strokeWidth: 1,
@@ -36,7 +36,7 @@ export const baseDescriptors: ObjectDescription[] = [
 		selectionStrokeColor: "#fca5a5",
 	},
 	{
-		featureObjectType: "supplier",
+		featureObjectType: "Producer",
 		graphObjectType: "pointer",
 		thikness: 10,
 		strokeWidth: 2,
@@ -62,5 +62,21 @@ export const baseDescriptors: ObjectDescription[] = [
 		fillColor: "#a3a3a3",
 		strokeColor: "#000000",
 		selectionStrokeColor: "#fca5a5",
+	},
+	{
+		featureObjectType: "Monitor",
+		graphObjectType: "pointer",
+		thikness: 4,
+		strokeWidth: 1,
+		offsets: { top: 0, left: 0 },
+		polynom: [
+			{ x: 0, y: 0 },
+			{ x: 118, y: 0 },
+			{ x: 118, y: 72 },
+			{ x: 0, y: 72 },
+		],
+		fillColor: "transparent",
+		strokeColor: "#333333",
+		selectionStrokeColor: "#93c5fd",
 	},
 ];

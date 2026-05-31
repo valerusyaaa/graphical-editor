@@ -4,8 +4,19 @@
     "composite": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@graphical-editor/editor-bridge": ["../packages/editor-bridge/src/index.ts"],
+      "~/*": ["../graphics/graphics/example/*"],
+      "charts-for-diplom": ["../graphics/graphics/src/index.ts"],
+      "charts-for-diplom/*": ["../graphics/graphics/src/*"]
     }
   },
-  "include": ["src", "vite.config.ts", "../packages/core/src"]
+  "include": [
+    "src",
+    "vite.config.ts",
+    "vite-plugin-dev-sse-mock.ts",
+    "../packages/core/src",
+    "../packages/editor-bridge/src"
+  ],
+  "exclude": ["src/charts-main.ts", "src/charts/**", "../graphics/graphics/**"]
 }

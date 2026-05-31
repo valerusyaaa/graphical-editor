@@ -160,7 +160,6 @@ export class LinearGraphicObject extends GraphicObjectScheme {
         };
         graphics.onrightclick = async event => {
             event.stopPropagation();
-            await tool.onMouseDownLinearObject(event, this);
             await tool.onContextMenuLinearObject(event, this.idObject);
         };
         graphics.context = this.drawElement();
@@ -174,7 +173,6 @@ export class LinearGraphicObject extends GraphicObjectScheme {
 
         shadowGraphics.onrightclick = async event => {
             event.stopPropagation();
-            await tool.onMouseDownLinearObject(event, this);
             await tool.onContextMenuLinearObject(event, this.idObject);
         };
 
@@ -232,7 +230,6 @@ export class LinearGraphicObject extends GraphicObjectScheme {
             };
             graphics.onrightclick = async event => {
                 event.stopPropagation();
-                await tool.onMouseDownLinearObject(event, this);
                 await tool.onContextMenuNodeObject(event, this.idObject, i);
             };
             nodes.push(graphics);

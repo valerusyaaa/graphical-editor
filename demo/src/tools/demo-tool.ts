@@ -11,8 +11,26 @@ import {
 	useEditorClipboardStore,
 	useGraphicSchemeStore,
 } from "../../../packages/core/src/model/stores";
+import {
+	applyGroupDragDelta,
+	buildGroupDragEntries,
+	commitGroupDrag,
+	dragTargetIds,
+} from "./demo-tool-group-drag";
+import { isSchemeObjectDragBlocked } from "../lib/schema-object-drag";
 
 type XY = { x: number; y: number };
+
+function isPrimaryPointerButton(
+	event: FederatedPointerEvent | MouseEvent,
+): boolean {
+	const raw =
+		"nativeEvent" in event && event.nativeEvent
+			? (event.nativeEvent as MouseEvent)
+			: (event as MouseEvent);
+	if (typeof raw.button === "number") return raw.button === 0;
+	return true;
+}
 
 export class DemoTool extends BaseTool {
 	private dragAbort?: AbortController;
@@ -21,10 +39,76 @@ export class DemoTool extends BaseTool {
 		super();
 	}
 
+	/** Все закреплённые id при перетаскивании одного из группы. */
+	private resolveGroupDragIds(primaryId: number): number[] {
+		const store = useGraphicSchemeStore();
+		const selected = store.selectedObjectIds;
+		if (selected.length > 1 && selected.includes(primaryId)) {
+			return [...selected];
+		}
+		return dragTargetIds(selected, primaryId);
+	}
+
+	private isDragBlockedForScheme(scheme: { data?: unknown }): boolean {
+		return isSchemeObjectDragBlocked(
+			scheme.data as Parameters<typeof isSchemeObjectDragBlocked>[0],
+		);
+	}
+
+	private isDragBlockedForGroupIds(ids: number[]): boolean {
+		const store = useGraphicSchemeStore();
+		for (const id of ids) {
+			const p = store.pointerObjs.find((o) => o.idObject === id);
+			if (p && this.isDragBlockedForScheme(p)) return true;
+			const l = store.linearObjs.find((o) => o.idObject === id);
+			if (l && this.isDragBlockedForScheme(l)) return true;
+		}
+		return false;
+	}
+
+	private pinClickSelection(
+		event: FederatedPointerEvent | MouseEvent,
+		objectId: number,
+	): boolean {
+		const store = useGraphicSchemeStore();
+		const additive =
+			"shiftKey" in event ? Boolean(event.shiftKey) : false;
+		store.selectObjectOnClick(objectId, { additive });
+		return store.isObjectSelected(objectId);
+	}
+
+	private startGroupDrag(
+		viewport: Viewport,
+		start: XY,
+		primaryId: number,
+	): void {
+		const store = useGraphicSchemeStore();
+		const ids = this.resolveGroupDragIds(primaryId);
+		if (this.isDragBlockedForGroupIds(ids)) return;
+		const entries = buildGroupDragEntries(store, ids);
+		if (!entries.length) return;
+
+		store.selectionDragObjectId = primaryId;
+
+		this.startDrag(
+			viewport,
+			start,
+			(delta) => applyGroupDragDelta(entries, delta, viewport),
+			() => {
+				store.selectionDragObjectId = null;
+				commitGroupDrag(viewport, entries);
+			},
+		);
+	}
+
 	async onMouseDownPointerObject(
 		event: FederatedPointerEvent,
 		object: PointerGraphicObject,
 	): Promise<void> {
+		if (!isPrimaryPointerButton(event)) return;
+		event.stopPropagation();
+		if (!this.pinClickSelection(event, object.idObject)) return;
+		if (this.isDragBlockedForScheme(object)) return;
 		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
@@ -33,9 +117,13 @@ export class DemoTool extends BaseTool {
 			(s) => s.idObject === object.idObject,
 		);
 		if (!selected) return;
-		event.stopPropagation();
 		const start = this.getWorldPoint(viewport, event);
 		if (!start) return;
+
+		if (this.resolveGroupDragIds(object.idObject).length > 1) {
+			this.startGroupDrag(viewport, start, object.idObject);
+			return;
+		}
 
 		selected.graphics.visible = true;
 		selected.graphics.eventMode = "static";
@@ -50,20 +138,13 @@ export class DemoTool extends BaseTool {
 					y: selected.position.y + delta.y,
 				};
 				selected.draw();
+				object.refreshPosition(selected.position, viewport);
 			},
 			() => {
 				store.selectionDragObjectId = null;
-				object.refreshPosition(selected.position, viewport);
-				useEditorClipboardStore().syncPointerGeometryFromScheme(
-					object.idObject,
-					object.position,
-					object.offsets,
-				);
-				selected.position = {
-					x: object.position.x,
-					y: object.position.y,
-				};
-				selected.draw();
+				commitGroupDrag(viewport, [
+					{ kind: "pointer", selected, scheme: object },
+				]);
 			},
 		);
 	}
@@ -73,6 +154,10 @@ export class DemoTool extends BaseTool {
 		object: LinearGraphicObject,
 		selectedNodeId?: string,
 	): Promise<void> {
+		if (!isPrimaryPointerButton(event)) return;
+		event.stopPropagation();
+		if (!this.pinClickSelection(event, object.idObject)) return;
+		if (this.isDragBlockedForScheme(object)) return;
 		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
@@ -81,7 +166,6 @@ export class DemoTool extends BaseTool {
 			(s) => s.idObject === object.idObject,
 		);
 		if (!selected) return;
-		event.stopPropagation();
 		const start = this.getWorldPoint(viewport, event);
 		if (!start) return;
 
@@ -107,15 +191,16 @@ export class DemoTool extends BaseTool {
 				},
 				() => {
 					store.selectionDragObjectId = null;
-					object.refreshPath(selected.points, viewport);
-					useEditorClipboardStore().syncLinearGeometryFromScheme(
-						object.idObject,
-						object.points,
-					);
-					selected.points = object.points.map((p) => ({ ...p }));
-					selected.draw();
+					commitGroupDrag(viewport, [
+						{ kind: "linear", selected, scheme: object },
+					]);
 				},
 			);
+			return;
+		}
+
+		if (this.resolveGroupDragIds(object.idObject).length > 1) {
+			this.startGroupDrag(viewport, start, object.idObject);
 			return;
 		}
 
@@ -129,16 +214,13 @@ export class DemoTool extends BaseTool {
 					y: point.y + delta.y,
 				}));
 				selected.draw();
+				object.refreshPath(selected.points, viewport);
 			},
 			() => {
 				store.selectionDragObjectId = null;
-				object.refreshPath(selected.points, viewport);
-				useEditorClipboardStore().syncLinearGeometryFromScheme(
-					object.idObject,
-					object.points,
-				);
-				selected.points = object.points.map((p) => ({ ...p }));
-				selected.draw();
+				commitGroupDrag(viewport, [
+					{ kind: "linear", selected, scheme: object },
+				]);
 			},
 		);
 	}
@@ -147,43 +229,19 @@ export class DemoTool extends BaseTool {
 		event: MouseEvent,
 		object: SelectedPointerGraphicObject,
 	): Promise<void> {
+		if (!isPrimaryPointerButton(event)) return;
+		event.stopPropagation();
+		if (!this.pinClickSelection(event, object.idObject)) return;
 		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
 		const base = object.objectScheme;
 		if (!base) return;
-		const store = useGraphicSchemeStore();
-		event.stopPropagation();
+		if (this.isDragBlockedForScheme(base)) return;
 		const start = this.getWorldPoint(viewport, event);
 		if (!start) return;
 
-		store.selectionDragObjectId = object.idObject;
-
-		this.startDrag(
-			viewport,
-			start,
-			(delta) => {
-				object.position = {
-					x: object.position.x + delta.x,
-					y: object.position.y + delta.y,
-				};
-				object.draw();
-			},
-			() => {
-				store.selectionDragObjectId = null;
-				base.refreshPosition(object.position, viewport);
-				useEditorClipboardStore().syncPointerGeometryFromScheme(
-					base.idObject,
-					base.position,
-					base.offsets,
-				);
-				object.position = {
-					x: base.position.x,
-					y: base.position.y,
-				};
-				object.draw();
-			},
-		);
+		this.startGroupDrag(viewport, start, object.idObject);
 	}
 
 	async onMouseDownSelectedLinearObject(
@@ -191,20 +249,23 @@ export class DemoTool extends BaseTool {
 		object: SelectedLinearGraphicObject,
 		selectedNodeId?: string,
 	): Promise<void> {
+		if (!isPrimaryPointerButton(event)) return;
+		event.stopPropagation();
+		if (!this.pinClickSelection(event, object.idObject)) return;
 		useEditorClipboardStore().setFocusedObject(object.idObject);
 		const viewport = this.getViewport();
 		if (!viewport) return;
 		const scheme = object.objectScheme;
 		if (!scheme) return;
+		if (this.isDragBlockedForScheme(scheme)) return;
 		const store = useGraphicSchemeStore();
 		const start = this.getWorldPoint(viewport, event);
-		if (!start) return;
 
 		if (selectedNodeId) {
 			const nodeIndex = this.getNodeIndex(selectedNodeId);
 			if (nodeIndex < 0 || nodeIndex >= object.points.length) return;
+			if (!start) return;
 			store.selectionDragObjectId = object.idObject;
-			event.stopPropagation();
 			this.startDrag(
 				viewport,
 				start,
@@ -218,41 +279,16 @@ export class DemoTool extends BaseTool {
 				},
 				() => {
 					store.selectionDragObjectId = null;
-					scheme.refreshPath(object.points, viewport);
-					useEditorClipboardStore().syncLinearGeometryFromScheme(
-						scheme.idObject,
-						scheme.points,
-					);
-					object.points = scheme.points.map((p) => ({ ...p }));
-					object.draw();
+					commitGroupDrag(viewport, [
+						{ kind: "linear", selected: object, scheme },
+					]);
 				},
 			);
 			return;
 		}
 
-		store.selectionDragObjectId = object.idObject;
-		event.stopPropagation();
-		this.startDrag(
-			viewport,
-			start,
-			(delta) => {
-				object.points = object.points.map((point) => ({
-					x: point.x + delta.x,
-					y: point.y + delta.y,
-				}));
-				object.draw();
-			},
-			() => {
-				store.selectionDragObjectId = null;
-				scheme.refreshPath(object.points, viewport);
-				useEditorClipboardStore().syncLinearGeometryFromScheme(
-					scheme.idObject,
-					scheme.points,
-				);
-				object.points = scheme.points.map((p) => ({ ...p }));
-				object.draw();
-			},
-		);
+		if (!start) return;
+		this.startGroupDrag(viewport, start, object.idObject);
 	}
 
 	private getViewport(): Viewport | null {
@@ -304,10 +340,6 @@ export class DemoTool extends BaseTool {
 		}
 	}
 
-	/**
-	 * Всегда переводим в мир схемы из **одних и тех же** экранных координат относительно canvas (как у DOM),
-	 * иначе старт drag (событие Pixi) и move (document) дают разный масштаб/смещение — контур selection «улетает» от курсора.
-	 */
 	private getWorldPoint(
 		viewport: Viewport,
 		event: MouseEvent | FederatedPointerEvent,

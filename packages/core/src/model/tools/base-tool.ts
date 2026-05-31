@@ -7,6 +7,7 @@ import type {
 } from "../schema";
 import type { ITool } from "../../api/itool";
 import { useEditorClipboardStore } from "../stores/editor-clipboard.store";
+import { useGraphicSchemeStore } from "../stores/graphic-scheme.store";
 
 function ctxClient(ev: FederatedPointerEvent): { x: number; y: number } {
 	return {
@@ -15,7 +16,27 @@ function ctxClient(ev: FederatedPointerEvent): { x: number; y: number } {
 	};
 }
 
+/** Мировые координаты из Pixi (viewport), если уже посчитаны событием. */
+function ctxWorld(
+	ev: FederatedPointerEvent,
+): { x: number; y: number } | null {
+	const w = (ev as FederatedPointerEvent & { world?: { x: number; y: number } })
+		.world;
+	if (w && Number.isFinite(w.x) && Number.isFinite(w.y)) {
+		return { x: w.x, y: w.y };
+	}
+	return null;
+}
+
+function isPrimaryPointerButton(ev: FederatedPointerEvent): boolean {
+	const raw = ev.nativeEvent as MouseEvent | undefined;
+	if (raw && typeof raw.button === "number") return raw.button === 0;
+	if (typeof ev.button === "number") return ev.button === 0;
+	return true;
+}
+
 function preventBrowserMenu(ev: FederatedPointerEvent) {
+	ev.stopPropagation();
 	const n = ev.nativeEvent as unknown;
 	if (
 		n &&
@@ -34,15 +55,26 @@ export class BaseTool implements ITool {
 		this.contextMenu = undefined;
 		this.itemsContextMenu = [];
 	}
+
+	/** Закрепить выделение на объекте при ПКМ (контур не пропадает после меню). */
+	protected pinSelectionForContextMenu(objectId: number): void {
+		useGraphicSchemeStore().selectObjectOnClick(objectId, { additive: false });
+	}
 	async onMouseDownPointerObject(
-		_event: FederatedPointerEvent,
+		event: FederatedPointerEvent,
 		_object: PointerGraphicObject,
-	): Promise<void> {}
+	): Promise<void> {
+		if (!isPrimaryPointerButton(event)) return;
+		useEditorClipboardStore().closeMenu();
+	}
 	async onMouseDownLinearObject(
-		_event: FederatedPointerEvent,
+		event: FederatedPointerEvent,
 		_object: LinearGraphicObject,
 		_selectedNodeId?: string,
-	): Promise<void> {}
+	): Promise<void> {
+		if (!isPrimaryPointerButton(event)) return;
+		useEditorClipboardStore().closeMenu();
+	}
 	async onMouseDownSelectedPointerObject(
 		_event: MouseEvent,
 		_object: SelectedPointerGraphicObject,
@@ -57,6 +89,7 @@ export class BaseTool implements ITool {
 		pointerObject: PointerGraphicObject | SelectedPointerGraphicObject,
 	): Promise<void> {
 		preventBrowserMenu(event);
+		this.pinSelectionForContextMenu(pointerObject.idObject);
 		const { x, y } = ctxClient(event);
 		useEditorClipboardStore().openMenuForObject(
 			x,
@@ -70,6 +103,7 @@ export class BaseTool implements ITool {
 		objectId: number,
 	): Promise<void> {
 		preventBrowserMenu(event);
+		this.pinSelectionForContextMenu(objectId);
 		const { x, y } = ctxClient(event);
 		useEditorClipboardStore().openMenuForObject(x, y, objectId, "linear");
 	}
@@ -86,16 +120,16 @@ export class BaseTool implements ITool {
 	): Promise<void> {
 		preventBrowserMenu(event);
 		const { x, y } = ctxClient(event);
-		useEditorClipboardStore().openMenuForPane(x, y);
+		useEditorClipboardStore().openMenuForPane(x, y, ctxWorld(event));
 	}
 	async onContextMenuSelectedArea(event: FederatedPointerEvent): Promise<void> {
 		preventBrowserMenu(event);
 		const { x, y } = ctxClient(event);
-		useEditorClipboardStore().openMenuForPane(x, y);
+		useEditorClipboardStore().openMenuForPane(x, y, ctxWorld(event));
 	}
 	async onContextMenuPane(event: FederatedPointerEvent): Promise<void> {
 		preventBrowserMenu(event);
 		const { x, y } = ctxClient(event);
-		useEditorClipboardStore().openMenuForPane(x, y);
+		useEditorClipboardStore().openMenuForPane(x, y, ctxWorld(event));
 	}
 }

@@ -13,11 +13,23 @@ import {
 	Matrix,
 	Point,
 	Polygon,
+	Text,
+	TextStyle,
 	type BoundsData,
 	type IHitArea,
 } from "pixi.js";
 import type { Viewport } from "pixi-viewport";
 import type { ITool } from "../../tools";
+import {
+	getMonitorCaption,
+	type MonitorDisplayLine,
+} from "../../../lib/monitor-object";
+import type { ObjectBaseData } from "../../../api/types";
+import {
+	isConsumerFeature,
+	isMonitorFeature,
+	isProducerFeature,
+} from "../feature-type-aliases";
 
 /** Локальный размер иконки «поставщик» (квадрат + стрелка), совпадает с polynom в дескрипторе. */
 export const PRODUCER_POINTER_SIZE = 48;
@@ -26,7 +38,7 @@ export const PRODUCER_POINTER_SIZE = 48;
 export const CONSUMER_POINTER_SIDE = 56;
 
 /** Доля стороны внутреннего △ от внешнего (меньше — уже «чёрное» тело). */
-const CONSUMER_INNER_SIDE_SCALE = 0.46;
+export const CONSUMER_INNER_SIDE_SCALE = 0.46;
 /** Скругление вершин внутреннего △ (радиус roundPoly, пиксели локальных координат). */
 const CONSUMER_INNER_CORNER_RADIUS = 5;
 
@@ -45,6 +57,19 @@ export function getConsumerOuterTriangleFlat(side: number): number[] {
 	return [0, 0, 0, side, w, side / 2];
 }
 
+/** Внутренний △ (вершина вправо), центрирован как в `drawConsumerIcon`. */
+export function getConsumerInnerPolynom(
+	side: number = CONSUMER_POINTER_SIDE,
+): XYPosition[] {
+	const innerSide = CONSUMER_INNER_SIDE_SCALE * side;
+	const offsetX = ((side - innerSide) * Math.sqrt(3)) / 6;
+	const offsetY = (side - innerSide) / 2;
+	return getConsumerOuterPolynom(innerSide).map((p) => ({
+		x: p.x + offsetX,
+		y: p.y + offsetY,
+	}));
+}
+
 export class PointerGraphicObject extends GraphicObjectScheme {
     // world position
 	position: XYPosition;
@@ -61,6 +86,8 @@ export class PointerGraphicObject extends GraphicObjectScheme {
     // local position
 	polynom: XYPosition[];
 	transformBounds: BoundsData;
+	monitorDisplayLines: MonitorDisplayLine[] = [];
+	monitorCaption = "";
 
 	constructor(info: ObjectInfo) {
 		super(info);
@@ -78,6 +105,18 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 		this.strokeWidth = info.strokeWidth ?? 1;
 		this.selectionStrokeColor = info.selectionStrokeColor ?? "#fca5a5";
 		this.transformBounds = new Bounds(); // TODO: Возможно нужнео брать из description
+		const data = info.data as ObjectBaseData | undefined;
+		if (isMonitorFeature(this.featureObjectType) && data) {
+			this.monitorDisplayLines = data.monitorDisplayLines ?? [];
+			this.monitorCaption = data.backendProperties
+				? getMonitorCaption({
+						id: this.idObject,
+						featureObjectType: this.featureObjectType,
+						graphObjectType: "pointer",
+						data,
+					})
+				: "Монитор";
+		}
 	}
 
 	/**
@@ -101,30 +140,101 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 		};
 		container.onrightclick = async (event) => {
 			event.stopPropagation();
-			tool.onContextMenuPointerObject(event, this);
-			await tool.onMouseDownPointerObject(event, this);
+			await tool.onContextMenuPointerObject(event, this);
 		};
 
 		container.hitArea = this.getProcessingHitArea();
 
-		//create graphics (фигурка объекта)
-		const graphics = new Graphics();
-		graphics.label = "graphics";
-		graphics.eventMode = "static";
-		this.drawElement(graphics.context);
+		if (isMonitorFeature(this.featureObjectType)) {
+			container.zIndex = 20;
+			this.drawMonitorVisual(container);
+		} else {
+			const graphics = new Graphics();
+			graphics.label = "graphics";
+			graphics.eventMode = "static";
+			this.drawElement(graphics.context);
 
-		const scaleX = this.flipHorizontal ? -1 : 1;
-		const scaleY = this.flipVertical ? -1 : 1;
-		graphics.origin.set(this.offsets.left, this.offsets.top);
-		graphics.scale.set(scaleX, scaleY);
+			const scaleX = this.flipHorizontal ? -1 : 1;
+			const scaleY = this.flipVertical ? -1 : 1;
+			graphics.origin.set(this.offsets.left, this.offsets.top);
+			graphics.scale.set(scaleX, scaleY);
 
-        //add graphics in container
-		container.addChild(graphics);
+			container.addChild(graphics);
+		}
+
 		markSchemaViewportChild(container);
 
-		// подпись объекта (label) строго ниже объекта
 		viewport.addChild(container);
 		this.transformBounds = this.getBounds(viewport);
+	}
+
+	private drawMonitorVisual(container: Container): void {
+		const pad = 4;
+		const lineH = 14;
+		const captionH = this.monitorCaption ? 16 : 0;
+		const valueCount = Math.max(
+			this.monitorDisplayLines.length,
+			1,
+		);
+		const boxW = Math.min(
+			320,
+			Math.max(
+				132,
+				...this.monitorDisplayLines.map((l) => l.text.length * 7 + pad * 2),
+				160,
+			),
+		);
+		const boxH = pad * 2 + captionH + valueCount * lineH;
+
+		const onDarkCanvas =
+			typeof document === "undefined" ||
+			document.documentElement.getAttribute("data-ge-theme") !== "light";
+
+		/** Невидимая область клика (без рамки — больше места под текст). */
+		const hit = new Graphics();
+		hit.label = "graphics";
+		hit.eventMode = "static";
+		hit.rect(0, 0, boxW, boxH).fill({ color: 0xffffff, alpha: 0.001 });
+		hit.cursor = "pointer";
+		container.addChild(hit);
+
+		let y = pad;
+		if (this.monitorCaption) {
+			const title = new Text({
+				text: this.monitorCaption,
+				style: new TextStyle({
+					fontFamily: "system-ui, Segoe UI, sans-serif",
+					fontSize: 11,
+					fontWeight: "600",
+					fill: onDarkCanvas ? 0xf0f0f0 : 0x1a1a1a,
+				}),
+			});
+			title.position.set(pad, y);
+			container.addChild(title);
+			y += captionH;
+		}
+
+		for (const line of this.monitorDisplayLines) {
+			const t = new Text({
+				text: line.text,
+				style: new TextStyle({
+					fontFamily: "system-ui, Segoe UI, sans-serif",
+					fontSize: 13,
+					fontWeight: "700",
+					fill: line.color,
+				}),
+			});
+			t.position.set(pad, y);
+			container.addChild(t);
+			y += lineH;
+		}
+
+		this.polynom = [
+			{ x: 0, y: 0 },
+			{ x: boxW, y: 0 },
+			{ x: boxW, y: boxH },
+			{ x: 0, y: boxH },
+		];
 	}
 
 	/**
@@ -254,14 +364,14 @@ export class PointerGraphicObject extends GraphicObjectScheme {
 	}
 
 	async drawElement(context: GraphicsContext): Promise<void> {
-		if (
-			this.featureObjectType === "producer" ||
-			this.featureObjectType === "supplier"
-		) {
+		if (isMonitorFeature(this.featureObjectType)) {
+			return;
+		}
+		if (isProducerFeature(this.featureObjectType)) {
 			this.drawProducerIcon(context);
 			return;
 		}
-		if (this.featureObjectType === "consumer") {
+		if (isConsumerFeature(this.featureObjectType)) {
 			this.drawConsumerIcon(context);
 			return;
 		}

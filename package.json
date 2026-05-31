@@ -4,6 +4,7 @@
     "version": "0.1.0",
     "scripts": {
         "dev:demo": "pnpm --dir demo dev",
+        "dev:charts-api": "pnpm --dir demo dev:charts-api",
         "build:core": "pnpm --filter @graphical-editor/core build",
         "build:demo": "pnpm --dir demo build",
         "dev": "pnpm dev:demo",
