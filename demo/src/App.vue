@@ -268,6 +268,8 @@ function onPropertyPanelChange(path: PropertyPath, value: string) {
 		setPropertyValue(props, path, value);
 		clipStore.pushUndo();
 		refreshMonitorDisplays();
+		// Поверхностный watch: переприсваивание массива после мутации data на месте.
+		objects.value = [...objects.value];
 		return;
 	}
 	setPropertyValue(schemaProperties.value, path, value);

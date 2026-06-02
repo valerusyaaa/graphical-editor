@@ -1,3 +1,4 @@
+import { markRaw } from "vue";
 import type { Viewport } from "pixi-viewport";
 import type { Container } from "pixi.js";
 import type { GraphicObjectDto, ObjectBaseData, ObjectDescription } from "../api";
@@ -75,6 +76,28 @@ export function rebuildFingerprintMap(
 	return map;
 }
 
+/** Вычисляет новые отпечатки и список изменившихся id за ОДИН проход (вместо collect+rebuild). */
+export function diffFingerprints(
+	objects: GraphicObjectDto<ObjectBaseData>[],
+	previous: Map<number, string>,
+): { changed: Set<number>; next: Map<number, string> } {
+	const next = new Map<number, string>();
+	const changed = new Set<number>();
+	for (const dto of objects) {
+		const fp = buildObjectFingerprint(dto);
+		next.set(dto.id, fp);
+		if (previous.get(dto.id) !== fp) {
+			changed.add(dto.id);
+		}
+	}
+	for (const id of previous.keys()) {
+		if (!next.has(id)) {
+			changed.add(id);
+		}
+	}
+	return { changed, next };
+}
+
 export type GraphicModelMaps = {
 	pointers: Map<number, PointerGraphicObject>;
 	linears: Map<number, LinearGraphicObject>;
@@ -97,16 +120,20 @@ export function createGraphicModelsFromDtos(
 				descriptions,
 				dto.featureObjectType,
 			);
-			const obj = createGraphicObjectFromDto(
-				dto,
-				valveDescriptionForDto(base, dto),
-			) as PointerGraphicObject;
+			const obj = markRaw(
+				createGraphicObjectFromDto(
+					dto,
+					valveDescriptionForDto(base, dto),
+				) as PointerGraphicObject,
+			);
 			pointers.set(dto.id, obj);
 		} else if (isLinearGraphicObjectDto(dto)) {
-			const obj = createGraphicObjectFromDto(
-				dto,
-				getDescriptionByType(descriptions, dto.featureObjectType),
-			) as LinearGraphicObject;
+			const obj = markRaw(
+				createGraphicObjectFromDto(
+					dto,
+					getDescriptionByType(descriptions, dto.featureObjectType),
+				) as LinearGraphicObject,
+			);
 			linears.set(dto.id, obj);
 		}
 	}
@@ -150,7 +177,9 @@ export function syncGraphicModelsIncremental(
 			const desc = valveDescriptionForDto(base, dto);
 			let obj = maps.pointers.get(dto.id);
 			if (!obj) {
-				obj = createGraphicObjectFromDto(dto, desc) as PointerGraphicObject;
+				obj = markRaw(
+					createGraphicObjectFromDto(dto, desc) as PointerGraphicObject,
+				);
 				maps.pointers.set(dto.id, obj);
 			} else {
 				applyDtoToGraphicObject(obj, dto, desc);
@@ -163,7 +192,9 @@ export function syncGraphicModelsIncremental(
 			);
 			let obj = maps.linears.get(dto.id);
 			if (!obj) {
-				obj = createGraphicObjectFromDto(dto, desc) as LinearGraphicObject;
+				obj = markRaw(
+					createGraphicObjectFromDto(dto, desc) as LinearGraphicObject,
+				);
 				maps.linears.set(dto.id, obj);
 			} else {
 				applyDtoToGraphicObject(obj, dto, desc);
@@ -245,7 +276,7 @@ export function patchLinearOnViewport(
 	vp: Viewport,
 	obj: LinearGraphicObject,
 	dto: LinearGraphicObjectDto,
-	_tool: ITool,
+	tool: ITool,
 ): void {
 	const idLabel = obj.idObject.toString();
 	const existing = vp.getChildByLabel(idLabel);

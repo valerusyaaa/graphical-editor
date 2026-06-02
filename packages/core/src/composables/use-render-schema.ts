@@ -2,10 +2,12 @@ import { Viewport } from "pixi-viewport";
 import { type Application, type Container } from "pixi.js";
 import {
 	getDescriptionByType,
-	isLinearGraphicObjectDto,
-	isPointerGraphicObjectDto,
 	useGraphicSchemeStore,
 } from "../model";
+import {
+	isLinearGraphicObjectDto,
+	isPointerGraphicObjectDto,
+} from "../model/schema/graphic-object-dto-factory";
 import { calculatingBoundsSchema } from "../lib";
 import { syncMonitorsInObjectList } from "../lib/monitor-object";
 import {
@@ -20,7 +22,7 @@ import {
 	buildStructuralKey,
 	clearSchemaViewportLayers,
 	createGraphicModelsFromDtos,
-	collectViewportPatchIds,
+	diffFingerprints,
 	patchLinearOnViewport,
 	patchPointerOnViewport,
 	rebuildFingerprintMap,
@@ -28,8 +30,12 @@ import {
 	syncGraphicModelsIncremental,
 	type GraphicModelMaps,
 } from "../lib/schema-render-sync";
-import { GraphicObjectDto, ObjectDescription } from "../api";
-import { Ref, watch } from "vue";
+import {
+	GraphicObjectDto,
+	ObjectBaseData,
+	ObjectDescription,
+} from "../api";
+import { Ref, watch, markRaw } from "vue";
 import {
 	PointerGraphicObject,
 	LinearGraphicObject,
@@ -40,7 +46,7 @@ import { ITool } from "../api/itool";
 import { useEditorClipboardStore } from "../model/stores/editor-clipboard.store";
 
 export function useRenderSchema(
-	objects: Ref<GraphicObjectDto<any>[]>,
+	objects: Ref<GraphicObjectDto<ObjectBaseData>[]>,
 	descriptions: Ref<ObjectDescription[]>,
 ) {
 	let viewport: Viewport;
@@ -90,10 +96,8 @@ export function useRenderSchema(
 
 	function patchViewportObjects(vp: Viewport, patchIds: Set<number>) {
 		const tool = graphicSchemaStore.tool;
-		const dtoById = new Map(objects.value.map((dto) => [dto.id, dto]));
-
 		for (const id of patchIds) {
-			const dto = dtoById.get(id);
+			const dto = objects.value.find((o) => o.id === id);
 			if (!dto) {
 				removeViewportObjectById(vp, id);
 				continue;
@@ -138,11 +142,11 @@ export function useRenderSchema(
 			return;
 		}
 
-		const patchIds = collectViewportPatchIds(
+		const { changed, next } = diffFingerprints(
 			objects.value,
 			objectFingerprints,
 		);
-		if (patchIds.size === 0) {
+		if (changed.size === 0) {
 			return;
 		}
 
@@ -152,15 +156,14 @@ export function useRenderSchema(
 			modelMaps,
 		);
 		applyModelsToStore(modelMaps);
-		objectFingerprints = rebuildFingerprintMap(objects.value);
+		objectFingerprints = next;
 
 		if (!viewport) {
 			return;
 		}
 
-		patchViewportObjects(viewport, patchIds);
-		// После сдвига объектов пересобираем selection (с предварительным снятием старых контуров).
-		buildSelectionLayers(viewport);
+		patchViewportObjects(viewport, changed);
+		patchSelectionLayers(viewport, changed);
 	}
 
 	function scheduleObjectsSync() {
@@ -210,10 +213,7 @@ export function useRenderSchema(
 		() => {
 			scheduleObjectsSync();
 		},
-		{
-			immediate: true,
-			deep: true,
-		},
+		{ immediate: true },
 	);
 
 	watch(
@@ -275,26 +275,70 @@ export function useRenderSchema(
 		graphicSchemaStore.scheme.layerSelectedGraphicObject.linear = [];
 	}
 
+	/** Обновляет геометрию контуров выделения только для изменившихся id (без полной пересборки). */
+	function patchSelectionLayers(vp: Viewport, ids: Set<number>) {
+		if (ids.size === 0) return;
+
+		const selPointer = new Map<number, SelectedPointerGraphicObject>();
+		for (const s of graphicSchemaStore.selectedPointerObjs) {
+			selPointer.set(s.idObject, s);
+		}
+		const selLinear = new Map<number, SelectedLinearGraphicObject>();
+		for (const s of graphicSchemaStore.selectedLinearObjs) {
+			selLinear.set(s.idObject, s);
+		}
+
+		for (const id of ids) {
+			const sp = selPointer.get(id);
+			if (sp) {
+				const base = modelMaps.pointers.get(id);
+				if (base) {
+					sp.position = { ...base.position };
+					sp.draw();
+				}
+				continue;
+			}
+			const sl = selLinear.get(id);
+			if (sl) {
+				const base = modelMaps.linears.get(id);
+				if (!base) continue;
+				if (base.points.length !== sl.points.length) {
+					buildSelectionLayers(vp);
+					return;
+				}
+				sl.points = base.points.map((p) => ({ ...p }));
+				sl.draw();
+			}
+		}
+	}
+
 	function buildSelectionLayers(viewport: Viewport) {
 		destroySelectionDisplayObjects();
+
+		const childByLabel = new Map<string, Container>();
+		for (const c of viewport.children) {
+			if (c.label) childByLabel.set(c.label, c as Container);
+		}
+
 		const pointerSelected: SelectedPointerGraphicObject[] = [];
 		const linearSelected: SelectedLinearGraphicObject[] = [];
-		const pinned = () =>
-			new Set(graphicSchemaStore.selectedObjectIds);
+		const pinnedIds = new Set(graphicSchemaStore.selectedObjectIds);
 
 		for (const o of graphicSchemaStore.pointerObjs) {
-			const selected = new SelectedPointerGraphicObject({
-				id: o.idObject,
-				objectType: "pointer",
-				techObjectId: o.data?.techObjectId,
-				position: { ...o.position },
-				rotateAngle: o.rotationAngle,
-				flipHorizontal: o.flipHorizontal,
-				flipVertical: o.flipVertical,
-				offsets: o.offsets,
-			});
+			const selected = markRaw(
+				new SelectedPointerGraphicObject({
+					id: o.idObject,
+					objectType: "pointer",
+					techObjectId: o.data?.techObjectId,
+					position: { ...o.position },
+					rotateAngle: o.rotationAngle,
+					flipHorizontal: o.flipHorizontal,
+					flipVertical: o.flipVertical,
+					offsets: o.offsets,
+				}),
+			);
 			selected.setObjectScheme(o);
-			const isPinned = pinned().has(o.idObject);
+			const isPinned = pinnedIds.has(o.idObject);
 			selected.graphics.visible = isPinned;
 			selected.graphics.zIndex = 15;
 			selected.graphics.eventMode = isPinned ? "static" : "none";
@@ -305,19 +349,17 @@ export function useRenderSchema(
 				selected.graphics.eventMode = "static";
 			};
 			const hidePointerSelection = () => {
-				if (
-					graphicSchemaStore.selectionDragObjectId === o.idObject
-				) {
+				if (graphicSchemaStore.selectionDragObjectId === o.idObject) {
 					return;
 				}
-				if (pinned().has(o.idObject)) return;
+				if (graphicSchemaStore.selectedObjectIds.includes(o.idObject)) {
+					return;
+				}
 				selected.graphics.visible = false;
 				selected.graphics.eventMode = "none";
 			};
 
-			const container = viewport.getChildByLabel(
-				o.idObject.toString(),
-			) as Container | null;
+			const container = childByLabel.get(o.idObject.toString());
 			if (container) {
 				container.eventMode = "static";
 				container.onpointerenter = showPointerSelection;
@@ -336,37 +378,33 @@ export function useRenderSchema(
 		}
 
 		for (const o of graphicSchemaStore.linearObjs) {
-			const selected = new SelectedLinearGraphicObject({
-				id: o.idObject,
-				objectType: "linear",
-				techObjectId: o.data?.techObjectId,
-				points: o.points.map((p) => ({ ...p })),
-			});
+			const selected = markRaw(
+				new SelectedLinearGraphicObject({
+					id: o.idObject,
+					objectType: "linear",
+					techObjectId: o.data?.techObjectId,
+					points: o.points.map((p) => ({ ...p })),
+				}),
+			);
 			selected.setObjectScheme(o);
-			selected.setOutlineVisible(pinned().has(o.idObject));
+			selected.setOutlineVisible(pinnedIds.has(o.idObject));
 			viewport.addChild(...selected.draw());
 
-			const baseShadow = viewport.getChildByLabel(
-				`${o.idObject}-shadow`,
-			);
-			const baseLine = viewport.getChildByLabel(
-				o.idObject.toString(),
-			);
+			const baseShadow = childByLabel.get(`${o.idObject}-shadow`);
+			const baseLine = childByLabel.get(o.idObject.toString());
 			const showLinear = () => {
-				if (
-					graphicSchemaStore.selectionDragObjectId === o.idObject
-				) {
+				if (graphicSchemaStore.selectionDragObjectId === o.idObject) {
 					return;
 				}
 				selected.setOutlineVisible(true);
 			};
 			const hideLinear = () => {
-				if (
-					graphicSchemaStore.selectionDragObjectId === o.idObject
-				) {
+				if (graphicSchemaStore.selectionDragObjectId === o.idObject) {
 					return;
 				}
-				if (pinned().has(o.idObject)) return;
+				if (graphicSchemaStore.selectedObjectIds.includes(o.idObject)) {
+					return;
+				}
 				selected.setOutlineVisible(false);
 			};
 
@@ -479,14 +517,12 @@ export function useRenderSchema(
 	}
 
 	function drawGraphicObjectsInZOrder(vp: Viewport, tool: ITool) {
-		const pointers = graphicSchemaStore.pointerObjs;
-		const linears = graphicSchemaStore.linearObjs;
 		for (const dto of objects.value) {
 			if (isPointerGraphicObjectDto(dto)) {
-				const o = pointers.find((x) => x.idObject === dto.id);
+				const o = modelMaps.pointers.get(dto.id);
 				if (o) o.draw(vp, tool);
 			} else if (isLinearGraphicObjectDto(dto)) {
-				const o = linears.find((x) => x.idObject === dto.id);
+				const o = modelMaps.linears.get(dto.id);
 				if (o) o.draw(vp, tool);
 			}
 		}

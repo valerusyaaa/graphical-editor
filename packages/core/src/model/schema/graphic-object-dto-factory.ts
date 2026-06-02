@@ -32,7 +32,7 @@ export function isLinearGraphicObjectDto(
 
 export function isPointerGraphicObjectDto(
 	dto: GraphicObjectDto<ObjectBaseData>,
-) {
+): dto is PointerGraphicObjectDto {
 	return dto.graphObjectType === "pointer" && dto.position !== undefined;
 }
 
